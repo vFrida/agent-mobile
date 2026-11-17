@@ -279,10 +279,8 @@ final class AppModel: ObservableObject {
         do {
             try await client.prompt(session.id, text: text, agent: session.agent, model: session.model)
             await loadHistory()
-            busy = false
         } catch {
-            busy = false
-            self.error = error.localizedDescription
+            await handlePromptError(error)
         }
     }
 
@@ -300,8 +298,17 @@ final class AppModel: ObservableObject {
         do {
             try await client.prompt(session.id, text: text, agent: session.agent, model: session.model, image: image)
             await loadHistory()
-            busy = false
         } catch {
+            await handlePromptError(error)
+        }
+    }
+
+    private func handlePromptError(_ error: Error) async {
+        if case ClientError.http(409, _) = error {
+            busy = true
+            await loadHistory()
+            self.error = "agent 还在执行上一条消息，等它结束或中断后再发"
+        } else {
             busy = false
             self.error = error.localizedDescription
         }
@@ -372,6 +379,7 @@ final class AppModel: ObservableObject {
                 self?.reconnecting = true
                 try? await Task.sleep(nanoseconds: backoff)
                 backoff = min(backoff * 2, 15_000_000_000)
+                self?.busy = false
                 await self?.loadHistory()
             }
         }
