@@ -21,7 +21,9 @@ data class SessionRef(
     val title: String = "",
     val agent: String = "build",
     val model: ModelRef? = null,
-    val time: SessionTime? = null
+    val time: SessionTime? = null,
+    val location: Location? = null,
+    val subpath: String = ""
 )
 
 @Serializable
@@ -32,6 +34,42 @@ data class SessionListResponse(val data: List<SessionRef> = emptyList())
 
 @Serializable
 data class SessionCreateResponse(val data: SessionRef? = null)
+
+@Serializable
+data class AgentInfo(
+    val id: String,
+    val description: String = "",
+    val mode: String = "",
+    val hidden: Boolean = false,
+    val model: ModelRef? = null
+)
+
+@Serializable
+data class AgentListResponse(val data: List<AgentInfo> = emptyList())
+
+@Serializable
+data class ModelInfo(
+    val id: String,
+    val providerID: String = "",
+    val name: String = "",
+    val status: String = "",
+    val enabled: Boolean = true
+) {
+    fun ref(variant: String? = null) = ModelRef(id = id, providerID = providerID, variant = variant)
+}
+
+@Serializable
+data class ProviderInfo(
+    val id: String,
+    val name: String = "",
+    val models: Map<String, ModelInfo> = emptyMap()
+)
+
+@Serializable
+data class ProvidersResponse(
+    val providers: List<ProviderInfo> = emptyList(),
+    val default: Map<String, String> = emptyMap()
+)
 
 @Serializable
 data class CreateSessionRequest(
@@ -64,7 +102,10 @@ data class MessageInfoDto(
 data class PartDto(
     val type: String = "",
     val text: String = "",
-    val tool: String = ""
+    val tool: String = "",
+    val mime: String? = null,
+    val filename: String? = null,
+    val url: String? = null
 )
 
 @Serializable
@@ -86,7 +127,8 @@ data class Endpoint(
 data class ChatLine(
     val role: String,
     val text: String = "",
-    val tool: String? = null
+    val tool: String? = null,
+    val image: String? = null
 )
 
 data class PermissionAsk(
@@ -97,10 +139,14 @@ data class PermissionAsk(
 data class UiState(
     val endpoint: Endpoint = Endpoint(),
     val sessions: List<SessionRef> = emptyList(),
+    val agents: List<AgentInfo> = emptyList(),
+    val models: List<ModelInfo> = emptyList(),
     val sessionID: String? = null,
     val sessionTitle: String = "",
     val sessionAgent: String = "build",
     val sessionModel: ModelRef? = null,
+    val sessionDirectory: String = "",
+    val sessionIDText: String = "",
     val lines: List<ChatLine> = emptyList(),
     val busy: Boolean = false,
     val loading: Boolean = false,

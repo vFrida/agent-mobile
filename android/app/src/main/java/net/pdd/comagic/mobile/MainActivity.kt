@@ -8,7 +8,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.pdd.comagic.mobile.ui.ChatScreen
+import net.pdd.comagic.mobile.ui.ComagicTheme
 import net.pdd.comagic.mobile.ui.PairingScreen
 import net.pdd.comagic.mobile.ui.SessionListScreen
 
@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            ComagicTheme {
                 val viewModel: AppViewModel = viewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 Root(state, viewModel)
@@ -64,6 +64,9 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
         state.sessionID != null -> ChatScreen(
             state = state,
             onSend = viewModel::send,
+            onSendImage = viewModel::sendImage,
+            onSelectAgent = viewModel::selectAgent,
+            onSelectModel = viewModel::selectModel,
             onInterrupt = viewModel::interrupt,
             onBack = viewModel::closeSession,
             onPermission = viewModel::replyPermission
@@ -84,6 +87,7 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onRefresh = viewModel::refreshSessions,
             onNew = viewModel::newSession,
             onOpen = viewModel::openSession,
+            onDelete = viewModel::deleteSession,
             onSettings = { editing = true }
         )
     }

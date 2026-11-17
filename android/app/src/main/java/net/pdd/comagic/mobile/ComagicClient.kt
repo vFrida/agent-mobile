@@ -60,19 +60,29 @@ class ComagicClient(endpoint: Endpoint) {
             val messages = json.decodeFromString<List<MessageDto>>(body)
             messages.mapNotNull { message ->
                 val texts = message.parts.filter { it.type == "text" }.map { it.text }.joinToString("")
+                val images = message.parts
+                    .filter { it.type == "file" && it.mime?.startsWith("image/") == true && !it.url.isNullOrBlank() }
+                    .mapNotNull { it.url }
                 when (message.info.role) {
-                    "user" -> if (texts.isBlank()) null else ChatLine(role = "user", text = texts)
+                    "user" -> when {
+                        images.isNotEmpty() -> images.map { ChatLine(role = "user", image = it) } +
+                            if (texts.isBlank()) emptyList() else listOf(ChatLine(role = "user", text = texts))
+                        texts.isBlank() -> emptyList()
+                        else -> listOf(ChatLine(role = "user", text = texts))
+                    }
                     "assistant" -> {
                         val tool = message.parts.lastOrNull { it.type == "tool" }?.tool
                         when {
-                            texts.isNotBlank() -> ChatLine(role = "assistant", text = texts)
-                            tool != null -> ChatLine(role = "tool", tool = tool)
-                            else -> null
+                            texts.isNotBlank() -> listOf(ChatLine(role = "assistant", text = texts)) +
+                                images.map { ChatLine(role = "assistant", image = it) }
+                            tool != null -> listOf(ChatLine(role = "tool", tool = tool))
+                            images.isNotEmpty() -> images.map { ChatLine(role = "assistant", image = it) }
+                            else -> emptyList()
                         }
                     }
-                    else -> null
+                    else -> emptyList()
                 }
-            }
+            }.flatten()
         }
 
     fun createSession(directory: String, model: ModelRef, agent: String = "build"): SessionRef {
@@ -87,13 +97,29 @@ class ComagicClient(endpoint: Endpoint) {
         }
     }
 
-    fun prompt(sessionID: String, text: String, agent: String?, model: ModelRef?) {
+    fun prompt(
+        sessionID: String,
+        text: String,
+        agent: String?,
+        model: ModelRef?,
+        image: ImageAttachment? = null
+    ) {
         val payload = buildJsonObject {
             put("parts", buildJsonArray {
-                add(buildJsonObject {
-                    put("type", "text")
-                    put("text", text)
-                })
+                if (image != null) {
+                    add(buildJsonObject {
+                        put("type", "file")
+                        put("mime", image.mime)
+                        put("filename", image.filename)
+                        put("url", image.dataUrl)
+                    })
+                }
+                if (text.isNotBlank()) {
+                    add(buildJsonObject {
+                        put("type", "text")
+                        put("text", text)
+                    })
+                }
             })
             if (!agent.isNullOrBlank()) put("agent", agent)
             if (model != null) {
@@ -111,6 +137,53 @@ class ComagicClient(endpoint: Endpoint) {
                     throw IOException("prompt ${response.code}: ${response.body?.string()?.take(300)}")
                 }
             }
+    }
+
+    fun listAgents(directory: String): List<AgentInfo> =
+        blocking("/api/agent?location%5Bdirectory%5D=${encode(directory)}", "agents") {
+            json.decodeFromString<AgentListResponse>(it).data
+        }
+
+    fun listModels(directory: String): List<ModelInfo> =
+        blocking("/config/providers?directory=${encode(directory)}", "models") {
+            val response = json.decodeFromString<ProvidersResponse>(it)
+            response.providers
+                .flatMap { provider ->
+                    provider.models.values.map { model ->
+                        if (model.providerID.isBlank()) model.copy(providerID = provider.id) else model
+                    }
+                }
+                .filter { it.enabled }
+                .distinctBy { "${it.providerID}/${it.id}" }
+        }
+
+    fun switchAgent(sessionID: String, agent: String) {
+        val payload = buildJsonObject { put("agent", agent) }.toString().toRequestBody(JSON)
+        http.newCall(request("/api/session/$sessionID/agent").post(payload).build())
+            .execute().use { response ->
+                if (!response.isSuccessful) throw IOException("agent ${response.code}")
+            }
+    }
+
+    fun switchModel(sessionID: String, model: ModelRef) {
+        val payload = buildJsonObject {
+            put("model", buildJsonObject {
+                put("id", model.id)
+                put("providerID", model.providerID)
+                model.variant?.let { put("variant", it) }
+            })
+        }.toString().toRequestBody(JSON)
+        http.newCall(request("/api/session/$sessionID/model").post(payload).build())
+            .execute().use { response ->
+                if (!response.isSuccessful) throw IOException("model ${response.code}")
+            }
+    }
+
+    fun deleteSession(sessionID: String) {
+        http.newCall(request("/api/session/$sessionID").delete().build()).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw IOException("delete ${response.code}: ${body.take(300)}")
+        }
     }
 
     fun interrupt(sessionID: String) {
@@ -152,5 +225,7 @@ class ComagicClient(endpoint: Endpoint) {
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private val EMPTY = ByteArray(0).toRequestBody(null)
+
+        private fun encode(value: String): String = java.net.URLEncoder.encode(value, "UTF-8")
     }
 }

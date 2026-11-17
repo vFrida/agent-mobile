@@ -2,6 +2,7 @@ package net.pdd.comagic.mobile
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,49 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { withContext(Dispatchers.IO) { client.listSessions() } }
                 .onSuccess { sessions -> _state.update { it.copy(sessions = sessions, loading = false) } }
                 .onFailure { error -> _state.update { it.copy(loading = false, error = error.message) } }
+            refreshOptions()
+        }
+    }
+
+    private fun optionsDirectory(): String =
+        _state.value.sessionDirectory.ifBlank { _state.value.endpoint.directory }
+
+    fun refreshOptions() {
+        val client = client() ?: return
+        val directory = optionsDirectory()
+        if (directory.isBlank()) return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val agents = client.listAgents(directory)
+                        .filter { it.mode == "primary" && !it.hidden }
+                    val models = client.listModels(directory)
+                    agents to models
+                }
+            }.onSuccess { (agents, models) ->
+                _state.update { it.copy(agents = agents, models = models) }
+            }
+        }
+    }
+
+    fun selectAgent(agent: String) {
+        val client = client() ?: return
+        val sessionID = _state.value.sessionID ?: return
+        if (agent == _state.value.sessionAgent) return
+        _state.update { it.copy(sessionAgent = agent) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { client.switchAgent(sessionID, agent) } }
+                .onFailure { error -> _state.update { it.copy(error = error.message) } }
+        }
+    }
+
+    fun selectModel(model: ModelRef) {
+        val client = client() ?: return
+        val sessionID = _state.value.sessionID ?: return
+        _state.update { it.copy(sessionModel = model) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { client.switchModel(sessionID, model) } }
+                .onFailure { error -> _state.update { it.copy(error = error.message) } }
         }
     }
 
@@ -64,6 +108,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 sessionTitle = session.title.ifBlank { session.id },
                 sessionAgent = session.agent,
                 sessionModel = session.model,
+                sessionDirectory = session.location?.directory ?: "",
+                sessionIDText = session.id,
                 lines = emptyList(),
                 busy = false,
                 pendingPermission = null,
@@ -71,6 +117,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         reloadHistory()
+        refreshOptions()
         val context = getApplication<Application>()
         context.startForegroundService(AgentStreamService.intent(context, session.id))
     }
@@ -91,6 +138,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteSession(session: SessionRef) {
+        val client = client() ?: return
+        _state.update { it.copy(loading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { client.deleteSession(session.id) } }
+                .onSuccess {
+                    if (_state.value.sessionID == session.id) closeSession()
+                    _state.update { state ->
+                        state.copy(
+                            sessions = state.sessions.filterNot { it.id == session.id },
+                            loading = false
+                        )
+                    }
+                }
+                .onFailure { error -> _state.update { it.copy(loading = false, error = error.message) } }
+        }
+    }
+
     fun reloadHistory() {
         val client = client() ?: return
         val sessionID = _state.value.sessionID ?: return
@@ -104,7 +169,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun newSession() {
         val client = client() ?: return
         val current = _state.value
-        val model = current.sessions.firstNotNullOfOrNull { it.model }
+        val model = current.sessionModel
+            ?: current.models.firstOrNull()?.ref()
+            ?: current.sessions.firstNotNullOfOrNull { it.model }
         if (model == null) {
             _state.update { it.copy(error = "没有可用模型：先打开一个已有会话再新建") }
             return
@@ -114,9 +181,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(error = "请先在设置里填写工作目录，例如 /Users/txc") }
             return
         }
+        val agent = current.sessionAgent.takeIf { it.isNotBlank() } ?: "build"
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { client.createSession(directory, model) } }
+            runCatching { withContext(Dispatchers.IO) { client.createSession(directory, model, agent) } }
                 .onSuccess { session ->
                     _state.update { it.copy(loading = false) }
                     openSession(session)
@@ -144,6 +212,36 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     client.prompt(sessionID, trimmed, current.sessionAgent, current.sessionModel)
+                }
+            }.onSuccess {
+                reloadHistory()
+                _state.update { it.copy(busy = false) }
+            }.onFailure { error ->
+                _state.update { it.copy(busy = false, error = error.message) }
+            }
+        }
+    }
+
+    fun sendImage(uri: Uri, caption: String) {
+        val client = client() ?: return
+        val current = _state.value
+        val sessionID = current.sessionID ?: return
+        val text = caption.trim()
+
+        _state.update {
+            it.copy(
+                lines = it.lines +
+                    ChatLine(role = "user", text = text, image = uri.toString()) +
+                    ChatLine(role = "assistant"),
+                busy = true,
+                error = null
+            )
+        }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val image = getApplication<Application>().prepareImage(uri)
+                    client.prompt(sessionID, text, current.sessionAgent, current.sessionModel, image)
                 }
             }.onSuccess {
                 reloadHistory()
