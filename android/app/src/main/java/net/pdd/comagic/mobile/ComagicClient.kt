@@ -220,8 +220,12 @@ class ComagicClient(endpoint: Endpoint) {
             }
     }
 
-    fun events(sessionID: String? = null): Flow<AgentEvent> = callbackFlow {
+    fun events(sessionID: String? = null, onOpen: () -> Unit = {}): Flow<AgentEvent> = callbackFlow {
         val listener = object : EventSourceListener() {
+            override fun onOpen(eventSource: EventSource, response: Response) {
+                onOpen()
+            }
+
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                 val event = AgentEvent.parse(data) ?: return
                 if (sessionID != null && event.sessionID != null && event.sessionID != sessionID) return

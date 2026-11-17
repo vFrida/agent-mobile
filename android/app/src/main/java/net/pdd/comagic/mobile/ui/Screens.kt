@@ -248,7 +248,9 @@ fun ServersScreen(
     onAdd: () -> Unit,
     onEdit: (Endpoint) -> Unit,
     onDelete: (Endpoint) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    batteryOptimized: Boolean,
+    onRequestIgnoreBattery: () -> Unit
 ) {
     var pendingDelete by remember { mutableStateOf<Endpoint?>(null) }
 
@@ -291,73 +293,102 @@ fun ServersScreen(
             )
         }
     ) { padding ->
-        if (servers.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("还没有服务器", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "添加一台运行 comagic web 的机器",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            return@Scaffold
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(servers, key = { it.id }) { server ->
-                val isActive = server.id == active.id
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-                    border = if (isActive) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth().clickable { onSelect(server) }
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                server.label,
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isActive) {
-                                Text(
-                                    "当前",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (servers.isEmpty()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("还没有服务器", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            server.baseUrl.ifBlank { "未填写地址" },
+                            "添加一台运行 comagic web 的机器",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            server.directory.ifBlank { "未设置工作目录" },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            TextButton(onClick = { onEdit(server) }) { Text("编辑") }
-                            TextButton(onClick = { pendingDelete = server }) { Text("删除") }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(servers, key = { it.id }) { server ->
+                        val isActive = server.id == active.id
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                            border = if (isActive) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.fillMaxWidth().clickable { onSelect(server) }
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        server.label,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (isActive) {
+                                        Text(
+                                            "当前",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                }
+                                Text(
+                                    server.baseUrl.ifBlank { "未填写地址" },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    server.directory.ifBlank { "未设置工作目录" },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(onClick = { onEdit(server) }) { Text("编辑") }
+                                    TextButton(onClick = { pendingDelete = server }) { Text("删除") }
+                                }
+                            }
                         }
                     }
                 }
+            }
+
+            BatteryOptimizationCard(
+                optimized = batteryOptimized,
+                onRequest = onRequestIgnoreBattery
+            )
+        }
+    }
+}
+
+@Composable
+private fun BatteryOptimizationCard(optimized: Boolean, onRequest: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth().padding(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("后台保活", style = MaterialTheme.typography.titleSmall)
+            Text(
+                if (optimized) {
+                    "系统可能休眠 App，导致聊天页断线重连。建议关闭电池优化；MIUI/HyperOS 还需允许自启动，并把省电策略设为「无限制」。"
+                } else {
+                    "已关闭电池优化。MIUI/HyperOS 仍需允许自启动，并把省电策略设为「无限制」。"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (optimized) {
+                OutlinedButton(onClick = onRequest) { Text("关闭电池优化") }
             }
         }
     }
@@ -1096,13 +1127,22 @@ fun ChatScreen(
                 )
             }
 
-            if (state.streamState == StreamState.RECONNECTING || state.streamState == StreamState.CONNECTING) {
-                Text(
+            when (state.streamState) {
+                StreamState.RECONNECTING -> Text(
                     "连接断开，正在重连…",
                     color = MaterialTheme.colorScheme.secondary,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
+
+                StreamState.CONNECTING -> Text(
+                    "正在连接…",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                else -> Unit
             }
 
             pendingImage?.let { uri ->

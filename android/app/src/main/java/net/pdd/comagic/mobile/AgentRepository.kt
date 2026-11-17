@@ -31,20 +31,22 @@ object AgentRepository {
         val client = ComagicClient(endpoint)
         job = scope.launch {
             var backoff = 1_000L
+            var dropped = false
             while (isActive) {
-                _state.value = StreamState.CONNECTING
-                val result = runCatching {
-                    client.events(sessionID).collect { event ->
-                        if (_state.value != StreamState.LIVE) _state.value = StreamState.LIVE
+                _state.value = if (dropped) StreamState.RECONNECTING else StreamState.CONNECTING
+                runCatching {
+                    client.events(sessionID) {
+                        _state.value = StreamState.LIVE
                         backoff = 1_000L
+                    }.collect { event ->
                         _events.emit(event)
                     }
                 }
-                if (result.isFailure && isActive) {
-                    _state.value = StreamState.RECONNECTING
-                    delay(backoff)
-                    backoff = (backoff * 2).coerceAtMost(15_000L)
-                }
+                if (!isActive) break
+                dropped = true
+                _state.value = StreamState.RECONNECTING
+                delay(backoff)
+                backoff = (backoff * 2).coerceAtMost(15_000L)
             }
         }
     }

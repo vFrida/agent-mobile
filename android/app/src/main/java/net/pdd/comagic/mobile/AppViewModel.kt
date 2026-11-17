@@ -34,7 +34,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             AgentRepository.state.collect { streamState ->
                 val backfill = streamState == StreamState.LIVE && previous == StreamState.RECONNECTING
                 previous = streamState
-                _state.update { it.copy(streamState = streamState) }
+                _state.update {
+                    it.copy(
+                        streamState = streamState,
+                        busy = if (backfill) false else it.busy
+                    )
+                }
                 if (backfill) reloadHistory()
             }
         }
@@ -182,6 +187,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         refreshOptions()
         val context = getApplication<Application>()
         context.startForegroundService(AgentStreamService.intent(context, session.id))
+    }
+
+    fun ensureStream() {
+        val current = _state.value
+        val sessionID = current.sessionID ?: return
+        if (!current.endpoint.ready) return
+        val context = getApplication<Application>()
+        runCatching {
+            context.startForegroundService(AgentStreamService.intent(context, sessionID))
+        }
+        if (current.busy) _state.update { it.copy(busy = false) }
+        reloadHistory()
     }
 
     fun closeSession() {
