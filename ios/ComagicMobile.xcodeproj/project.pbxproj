@@ -12,10 +12,12 @@
 		3FA5491FF852BA7E7EBC21E7 /* ComagicClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68FA9E557619B42941F1A48 /* ComagicClientTests.swift */; };
 		4AD4B401F7344C1C2F22C85D /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E109CA62B3EB4B32D3B505 /* Models.swift */; };
 		6A078CBCC5BD48339D2445BB /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F64FE5102E091E9A39A46268 /* SessionListView.swift */; };
+		77151724454520EB65EBA40F /* SpeechInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFEBE585936C7A1BF243D960 /* SpeechInput.swift */; };
 		87884A48CD76D0E49EB9D877 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 180D64AE271F160833445973 /* App.swift */; };
 		A07767BF828224C4112A1415 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEEBF8AF84E5DC20ADB13D99 /* ChatView.swift */; };
 		A30C064D088B7983648BC9E9 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8927AD00064BC47283102410 /* AppModel.swift */; };
 		A9907127A2E658ABDC049830 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE8786D4687AD87A7E18F31E /* QRScannerView.swift */; };
+		B7C067CAE2C89E00A248F33B /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67AF78DE69B732F0C1151AAD /* Palette.swift */; };
 		CEB57CAA27B84A9708591931 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1BCB8B8340B34B01DB8A29DA /* Assets.xcassets */; };
 		E7BE4490D50C75B8CD706628 /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB688F10CA15A4C05F7F8E95 /* PairingView.swift */; };
 /* End PBXBuildFile section */
@@ -35,11 +37,13 @@
 		1BCB8B8340B34B01DB8A29DA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		39974B7A90F561BE1AA9C041 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4418266A8EDFBEB80E1E2566 /* EndpointStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndpointStore.swift; sourceTree = "<group>"; };
+		67AF78DE69B732F0C1151AAD /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		78B540DC395A27F69C0208DC /* ComagicClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComagicClient.swift; sourceTree = "<group>"; };
 		8927AD00064BC47283102410 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		93E109CA62B3EB4B32D3B505 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		A84C30C935F6906FEBEBEDF4 /* ComagicMobileTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ComagicMobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEEBF8AF84E5DC20ADB13D99 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		CFEBE585936C7A1BF243D960 /* SpeechInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechInput.swift; sourceTree = "<group>"; };
 		D5D55E6F271B409F3207D02B /* ComagicMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ComagicMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D68FA9E557619B42941F1A48 /* ComagicClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComagicClientTests.swift; sourceTree = "<group>"; };
 		DE8786D4687AD87A7E18F31E /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
@@ -78,6 +82,8 @@
 				4418266A8EDFBEB80E1E2566 /* EndpointStore.swift */,
 				39974B7A90F561BE1AA9C041 /* Info.plist */,
 				93E109CA62B3EB4B32D3B505 /* Models.swift */,
+				67AF78DE69B732F0C1151AAD /* Palette.swift */,
+				CFEBE585936C7A1BF243D960 /* SpeechInput.swift */,
 				3F26F4A4331F2ECA914A73C5 /* Views */,
 			);
 			path = ComagicMobile;
@@ -201,8 +207,10 @@
 				0912866283942DBEE9A4370E /* EndpointStore.swift in Sources */,
 				4AD4B401F7344C1C2F22C85D /* Models.swift in Sources */,
 				E7BE4490D50C75B8CD706628 /* PairingView.swift in Sources */,
+				B7C067CAE2C89E00A248F33B /* Palette.swift in Sources */,
 				A9907127A2E658ABDC049830 /* QRScannerView.swift in Sources */,
 				6A078CBCC5BD48339D2445BB /* SessionListView.swift in Sources */,
+				77151724454520EB65EBA40F /* SpeechInput.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

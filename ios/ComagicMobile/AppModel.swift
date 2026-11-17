@@ -1,9 +1,12 @@
 import Foundation
+import UIKit
 
 @MainActor
 final class AppModel: ObservableObject {
     @Published var endpoint: Endpoint
     @Published var sessions: [SessionRef] = []
+    @Published var agents: [AgentInfo] = []
+    @Published var models: [ModelInfo] = []
     @Published var loading = false
     @Published var error: String?
     @Published var current: SessionRef?
@@ -11,6 +14,19 @@ final class AppModel: ObservableObject {
     @Published var busy = false
     @Published var reconnecting = false
     @Published var pendingPermission: String?
+    @Published var currentDirectory = ""
+
+    var currentAgent: String { current?.agent ?? "-" }
+    var currentModelLabel: String {
+        guard let model = current?.model else { return "模型" }
+        if let known = models.first(where: {
+            $0.id == model.id && (($0.providerID ?? "") == model.providerID || ($0.providerID ?? "").isEmpty)
+        }) {
+            return known.name ?? model.id
+        }
+        return model.id
+    }
+    var currentID: String { current?.id ?? "" }
 
     private var streamTask: Task<Void, Never>?
 
@@ -39,14 +55,74 @@ final class AppModel: ObservableObject {
         } catch {
             self.error = error.localizedDescription
         }
+        await loadOptions()
+    }
+
+    private var optionsDirectory: String {
+        let current = currentDirectory.trimmingCharacters(in: .whitespaces)
+        return current.isEmpty ? endpoint.directory.trimmingCharacters(in: .whitespaces) : current
+    }
+
+    func loadOptions() async {
+        guard let client else { return }
+        let directory = optionsDirectory
+        guard !directory.isEmpty else { return }
+        if let loaded = try? await client.listAgents(directory: directory) {
+            agents = loaded.filter { ($0.mode ?? "") == "primary" && !($0.hidden ?? false) }
+        }
+        if let loaded = try? await client.listModels(directory: directory) {
+            models = loaded
+        }
+    }
+
+    func selectAgent(_ agent: String) async {
+        guard let client, let session = current, (session.agent ?? "") != agent else { return }
+        if var updated = current {
+            updated.agent = agent
+            current = updated
+        }
+        do {
+            try await client.switchAgent(session.id, agent: agent)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func selectModel(_ model: ModelRef) async {
+        guard let client, let session = current else { return }
+        if var updated = current {
+            updated.model = model
+            current = updated
+        }
+        do {
+            try await client.switchModel(session.id, model: model)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func delete(_ session: SessionRef) async {
+        guard let client else { return }
+        loading = true
+        defer { loading = false }
+        do {
+            try await client.deleteSession(session.id)
+            if current?.id == session.id { close() }
+            sessions.removeAll { $0.id == session.id }
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     func open(_ session: SessionRef) async {
         current = session
+        currentDirectory = session.location?.directory ?? endpoint.directory
         lines = []
         error = nil
         busy = false
         await loadHistory()
+        await loadOptions()
         startStream(session.id)
     }
 
@@ -61,7 +137,7 @@ final class AppModel: ObservableObject {
 
     func newSession() async {
         guard let client else { return }
-        guard let model = sessions.compactMap({ $0.model }).first else {
+        guard let model = current?.model ?? models.first?.ref() ?? sessions.compactMap({ $0.model }).first else {
             error = "没有可用模型：先打开一个已有会话"
             return
         }
@@ -73,7 +149,7 @@ final class AppModel: ObservableObject {
         loading = true
         defer { loading = false }
         do {
-            let session = try await client.createSession(directory: directory, model: model, agent: "build")
+            let session = try await client.createSession(directory: directory, model: model, agent: current?.agent ?? "build")
             await open(session)
             await refresh()
         } catch {
@@ -111,6 +187,46 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func sendImage(_ data: Data, caption: String) async {
+        guard let client, let session = current else { return }
+        guard let image = Self.prepareImage(data) else {
+            error = "无法读取图片"
+            return
+        }
+        let text = caption.trimmingCharacters(in: .whitespacesAndNewlines)
+        lines.append(ChatLine(role: "user", text: text, image: image.dataURL))
+        lines.append(ChatLine(role: "assistant"))
+        busy = true
+        error = nil
+        do {
+            try await client.prompt(session.id, text: text, agent: session.agent, model: session.model, image: image)
+            await loadHistory()
+            busy = false
+        } catch {
+            busy = false
+            self.error = error.localizedDescription
+        }
+    }
+
+    private static func prepareImage(_ data: Data, maxEdge: CGFloat = 1600) -> ImageAttachment? {
+        guard let source = UIImage(data: data) else { return nil }
+        let edge = max(source.size.width, source.size.height)
+        let ratio = edge > maxEdge ? maxEdge / edge : 1
+        let size = CGSize(width: source.size.width * ratio, height: source.size.height * ratio)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let jpeg = renderer.jpegData(withCompressionQuality: 0.82) { _ in
+            source.draw(in: CGRect(origin: .zero, size: size))
+        }
+        return ImageAttachment(
+            mime: "image/jpeg",
+            filename: "image-\(Int(Date().timeIntervalSince1970)).jpg",
+            dataURL: "data:image/jpeg;base64," + jpeg.base64EncodedString()
+        )
+    }
+
     func interrupt() async {
         guard let client, let session = current else { return }
         do {
@@ -119,6 +235,21 @@ final class AppModel: ObservableObject {
             self.error = error.localizedDescription
         }
     }
+
+    #if DEBUG
+    func applyDebugArguments() async {
+        let args = ProcessInfo.processInfo.arguments
+        if let index = args.firstIndex(of: "-pairURL"), index + 1 < args.count,
+           let endpoint = PairPayload.parse(args[index + 1]), endpoint.ready {
+            connect(endpoint)
+            await refresh()
+        }
+        if let index = args.firstIndex(of: "-sessionID"), index + 1 < args.count,
+           let session = sessions.first(where: { $0.id == args[index + 1] }) {
+            await open(session)
+        }
+    }
+    #endif
 
     private func startStream(_ sessionID: String) {
         streamTask?.cancel()

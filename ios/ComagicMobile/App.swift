@@ -20,7 +20,11 @@ struct RootView: View {
             content
         }
         .task {
+            #if DEBUG
+            await model.applyDebugArguments()
+            #else
             if model.endpoint.ready { await model.refresh() }
+            #endif
         }
         .onOpenURL { url in
             if let endpoint = PairPayload.parse(url.absoluteString), endpoint.ready {

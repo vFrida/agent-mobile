@@ -59,9 +59,10 @@ struct ComagicClient {
         return value
     }
 
-    private func request(_ path: String) -> URLRequest {
-        let url = URL(string: base + path)!
-        var request = URLRequest(url: url, timeoutInterval: 60)
+    private func request(_ path: String, query: [URLQueryItem] = []) -> URLRequest {
+        var components = URLComponents(string: base + path)!
+        if !query.isEmpty { components.queryItems = query }
+        var request = URLRequest(url: components.url!, timeoutInterval: 60)
         let token = Data("\(endpoint.username):\(endpoint.password)".utf8).base64EncodedString()
         request.setValue("Basic \(token)", forHTTPHeaderField: "Authorization")
         return request
@@ -114,30 +115,53 @@ struct ComagicClient {
     func history(_ sessionID: String) async throws -> [ChatLine] {
         let data = try await send(request("/session/\(sessionID)/message"))
         let messages = try JSONDecoder().decode([MessageDto].self, from: data)
-        return messages.compactMap { message in
+        return messages.flatMap { message -> [ChatLine] in
             let texts = (message.parts ?? [])
                 .filter { $0.type == "text" }
                 .compactMap { $0.text }
                 .joined()
+            let images = (message.parts ?? [])
+                .filter { $0.type == "file" && $0.mime?.hasPrefix("image/") == true }
+                .compactMap { $0.url }
             switch message.info.role {
             case "user":
-                return texts.isEmpty ? nil : ChatLine(role: "user", text: texts)
+                var lines = images.map { ChatLine(role: "user", image: $0) }
+                if !texts.isEmpty { lines.append(ChatLine(role: "user", text: texts)) }
+                return lines
             case "assistant":
-                if !texts.isEmpty { return ChatLine(role: "assistant", text: texts) }
-                if let tool = message.parts?.last(where: { $0.type == "tool" })?.tool {
-                    return ChatLine(role: "tool", tool: tool)
+                if !texts.isEmpty {
+                    return [ChatLine(role: "assistant", text: texts)] + images.map { ChatLine(role: "assistant", image: $0) }
                 }
-                return nil
+                if let tool = message.parts?.last(where: { $0.type == "tool" })?.tool {
+                    return [ChatLine(role: "tool", tool: tool)]
+                }
+                return images.map { ChatLine(role: "assistant", image: $0) }
             default:
-                return nil
+                return []
             }
         }
     }
 
-    func prompt(_ sessionID: String, text: String, agent: String?, model: ModelRef?) async throws {
-        var body: [String: Any] = [
-            "parts": [["type": "text", "text": text]]
-        ]
+    func prompt(
+        _ sessionID: String,
+        text: String,
+        agent: String?,
+        model: ModelRef?,
+        image: ImageAttachment? = nil
+    ) async throws {
+        var parts: [[String: Any]] = []
+        if let image {
+            parts.append([
+                "type": "file",
+                "mime": image.mime,
+                "filename": image.filename,
+                "url": image.dataURL
+            ])
+        }
+        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append(["type": "text", "text": text])
+        }
+        var body: [String: Any] = ["parts": parts]
         if let agent { body["agent"] = agent }
         if let model {
             var modelBody: [String: Any] = ["providerID": model.providerID, "modelID": model.id]
@@ -145,6 +169,52 @@ struct ComagicClient {
             body["model"] = modelBody
         }
         _ = try await send(jsonRequest("/session/\(sessionID)/message", method: "POST", body: body))
+    }
+
+    func listAgents(directory: String) async throws -> [AgentInfo] {
+        let data = try await send(
+            request("/api/agent", query: [URLQueryItem(name: "location[directory]", value: directory)])
+        )
+        return try JSONDecoder().decode(AgentListResponse.self, from: data).data
+    }
+
+    func listModels(directory: String) async throws -> [ModelInfo] {
+        let data = try await send(
+            request("/config/providers", query: [URLQueryItem(name: "directory", value: directory)])
+        )
+        let response = try JSONDecoder().decode(ProvidersResponse.self, from: data)
+        var seen = Set<String>()
+        var models: [ModelInfo] = []
+        for provider in response.providers {
+            for var model in (provider.models ?? [:]).values {
+                if (model.providerID ?? "").isEmpty { model.providerID = provider.id }
+                let key = "\(model.providerID ?? "")/\(model.id)"
+                guard !seen.contains(key) else { continue }
+                seen.insert(key)
+                if model.enabled ?? true { models.append(model) }
+            }
+        }
+        return models
+    }
+
+    func switchAgent(_ sessionID: String, agent: String) async throws {
+        _ = try await send(
+            jsonRequest("/api/session/\(sessionID)/agent", method: "POST", body: ["agent": agent])
+        )
+    }
+
+    func switchModel(_ sessionID: String, model: ModelRef) async throws {
+        var modelBody: [String: Any] = ["id": model.id, "providerID": model.providerID]
+        if let variant = model.variant { modelBody["variant"] = variant }
+        _ = try await send(
+            jsonRequest("/api/session/\(sessionID)/model", method: "POST", body: ["model": modelBody])
+        )
+    }
+
+    func deleteSession(_ sessionID: String) async throws {
+        var request = request("/api/session/\(sessionID)")
+        request.httpMethod = "DELETE"
+        _ = try await send(request)
     }
 
     func interrupt(_ sessionID: String) async throws {
