@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0912866283942DBEE9A4370E /* EndpointStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4418266A8EDFBEB80E1E2566 /* EndpointStore.swift */; };
+		3D8118483C4ED6492AEA13EC /* DirectoryPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D637DDA384887BF83B8E42 /* DirectoryPickerView.swift */; };
 		3DA3A1A6D3FEC78DB2B820DB /* ComagicClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78B540DC395A27F69C0208DC /* ComagicClient.swift */; };
 		3FA5491FF852BA7E7EBC21E7 /* ComagicClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68FA9E557619B42941F1A48 /* ComagicClientTests.swift */; };
 		4AD4B401F7344C1C2F22C85D /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E109CA62B3EB4B32D3B505 /* Models.swift */; };
@@ -37,6 +38,7 @@
 		1BCB8B8340B34B01DB8A29DA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		39974B7A90F561BE1AA9C041 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4418266A8EDFBEB80E1E2566 /* EndpointStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndpointStore.swift; sourceTree = "<group>"; };
+		63D637DDA384887BF83B8E42 /* DirectoryPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryPickerView.swift; sourceTree = "<group>"; };
 		67AF78DE69B732F0C1151AAD /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		78B540DC395A27F69C0208DC /* ComagicClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComagicClient.swift; sourceTree = "<group>"; };
 		8927AD00064BC47283102410 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -65,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				CEEBF8AF84E5DC20ADB13D99 /* ChatView.swift */,
+				63D637DDA384887BF83B8E42 /* DirectoryPickerView.swift */,
 				FB688F10CA15A4C05F7F8E95 /* PairingView.swift */,
 				DE8786D4687AD87A7E18F31E /* QRScannerView.swift */,
 				F64FE5102E091E9A39A46268 /* SessionListView.swift */,
@@ -204,6 +207,7 @@
 				A30C064D088B7983648BC9E9 /* AppModel.swift in Sources */,
 				A07767BF828224C4112A1415 /* ChatView.swift in Sources */,
 				3DA3A1A6D3FEC78DB2B820DB /* ComagicClient.swift in Sources */,
+				3D8118483C4ED6492AEA13EC /* DirectoryPickerView.swift in Sources */,
 				0912866283942DBEE9A4370E /* EndpointStore.swift in Sources */,
 				4AD4B401F7344C1C2F22C85D /* Models.swift in Sources */,
 				E7BE4490D50C75B8CD706628 /* PairingView.swift in Sources */,

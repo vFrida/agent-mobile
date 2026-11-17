@@ -37,6 +37,8 @@ struct RootView: View {
     private var content: some View {
         if model.current != nil {
             ChatView()
+        } else if model.directoryPicker != nil {
+            DirectoryPickerView()
         } else if !model.endpoint.ready || editing {
             PairingView(editing: $editing)
         } else {

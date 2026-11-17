@@ -102,7 +102,7 @@ struct SessionListView: View {
             }
             ToolbarItem(placement: .bottomBar) {
                 Button {
-                    Task { await model.newSession() }
+                    Task { await model.openDirectoryPicker() }
                 } label: {
                     Label("新建会话", systemImage: "plus")
                         .font(.system(size: 14, weight: .semibold))
@@ -185,7 +185,7 @@ struct SessionListView: View {
                     .foregroundStyle(Palette.textBase)
                 if query.isEmpty && !model.loading {
                     Button("新建会话") {
-                        Task { await model.newSession() }
+                        Task { await model.openDirectoryPicker() }
                     }
                     .font(.system(size: 13, weight: .semibold))
                     .padding(.top, 4)

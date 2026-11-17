@@ -15,6 +15,7 @@ final class AppModel: ObservableObject {
     @Published var reconnecting = false
     @Published var pendingPermission: String?
     @Published var currentDirectory = ""
+    @Published var directoryPicker: DirectoryPickerState?
 
     var currentAgent: String { current?.agent ?? "-" }
     var currentModelLabel: String {
@@ -135,15 +136,82 @@ final class AppModel: ObservableObject {
         reconnecting = false
     }
 
-    func newSession() async {
+    func openDirectoryPicker() async {
+        guard let client else { return }
+        directoryPicker = DirectoryPickerState(
+            current: endpoint.directory,
+            home: "",
+            entries: [],
+            loading: true,
+            error: nil
+        )
+        do {
+            let paths: PathInfo
+            if let primary = try? await client.paths(directory: endpoint.directory) {
+                paths = primary
+            } else {
+                paths = try await client.paths(directory: "")
+            }
+            let directory = paths.directory?.isEmpty == false
+                ? (paths.directory ?? "")
+                : (paths.home ?? "")
+            let entries = directory.isEmpty
+                ? []
+                : try await client.listEntries(directory: directory, path: directory)
+            directoryPicker = DirectoryPickerState(
+                current: directory,
+                home: paths.home ?? "",
+                entries: entries,
+                loading: false,
+                error: nil
+            )
+        } catch {
+            directoryPicker?.loading = false
+            directoryPicker?.error = error.localizedDescription
+        }
+    }
+
+    func loadDirectory(_ path: String) async {
+        guard let client, var picker = directoryPicker else { return }
+        let target = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty else { return }
+        picker.current = target
+        picker.loading = true
+        picker.error = nil
+        directoryPicker = picker
+        do {
+            let entries = try await client.listEntries(directory: target, path: target)
+            picker.entries = entries
+            picker.loading = false
+            directoryPicker = picker
+        } catch {
+            picker.loading = false
+            picker.error = error.localizedDescription
+            directoryPicker = picker
+        }
+    }
+
+    func closeDirectoryPicker() {
+        directoryPicker = nil
+    }
+
+    func confirmDirectory(_ path: String) async {
+        guard !path.isEmpty else { return }
+        endpoint.directory = path
+        EndpointStore.shared.endpoint = endpoint
+        directoryPicker = nil
+        await newSession(directory: path)
+    }
+
+    func newSession(directory: String) async {
         guard let client else { return }
         guard let model = current?.model ?? models.first?.ref() ?? sessions.compactMap({ $0.model }).first else {
             error = "没有可用模型：先打开一个已有会话"
             return
         }
-        let directory = endpoint.directory.trimmingCharacters(in: .whitespaces)
+        let directory = directory.trimmingCharacters(in: .whitespaces)
         guard !directory.isEmpty else {
-            error = "请先在设置里填写工作目录，例如 /Users/txc"
+            error = "请选择工作目录"
             return
         }
         loading = true

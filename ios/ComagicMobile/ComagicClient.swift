@@ -171,6 +171,35 @@ struct ComagicClient {
         _ = try await send(jsonRequest("/session/\(sessionID)/message", method: "POST", body: body))
     }
 
+    func paths(directory: String) async throws -> PathInfo {
+        let data = try await send(
+            request("/path", query: [URLQueryItem(name: "directory", value: directory)])
+        )
+        return try JSONDecoder().decode(PathInfo.self, from: data)
+    }
+
+    func listEntries(directory: String, path: String) async throws -> [FsEntry] {
+        let data = try await send(
+            request(
+                "/api/fs/list",
+                query: [
+                    URLQueryItem(name: "location[directory]", value: directory),
+                    URLQueryItem(name: "path", value: path)
+                ]
+            )
+        )
+        let entries = try JSONDecoder().decode(FsListResponse.self, from: data).data
+        let base = directory.hasSuffix("/") && directory != "/" ? String(directory.dropLast()) : directory
+        return entries.map { entry in
+            var entry = entry
+            if !entry.path.hasPrefix("/") {
+                entry.path = base == "/" ? "/" + entry.path : base + "/" + entry.path
+            }
+            while entry.path.count > 1 && entry.path.hasSuffix("/") { entry.path.removeLast() }
+            return entry
+        }
+    }
+
     func listAgents(directory: String) async throws -> [AgentInfo] {
         let data = try await send(
             request("/api/agent", query: [URLQueryItem(name: "location[directory]", value: directory)])

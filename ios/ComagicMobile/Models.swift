@@ -42,6 +42,32 @@ struct AgentInfo: Codable, Identifiable, Hashable {
     var model: ModelRef?
 }
 
+struct PathInfo: Codable {
+    var home: String?
+    var state: String?
+    var config: String?
+    var worktree: String?
+    var directory: String?
+}
+
+struct FsEntry: Codable, Identifiable, Hashable {
+    var path: String
+    var type: String?
+    var id: String { path }
+}
+
+struct FsListResponse: Codable {
+    let data: [FsEntry]
+}
+
+struct DirectoryPickerState {
+    var current: String
+    var home: String = ""
+    var entries: [FsEntry]
+    var loading: Bool
+    var error: String?
+}
+
 struct AgentListResponse: Codable {
     let data: [AgentInfo]
 }
