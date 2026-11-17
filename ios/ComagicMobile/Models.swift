@@ -142,7 +142,7 @@ struct MessageDto: Codable {
     var parts: [MessagePart]?
 }
 
-struct ChatLine: Identifiable, Hashable {
+struct ChatLine: Identifiable, Hashable, Codable {
     let id = UUID()
     var role: String
     var text: String = ""

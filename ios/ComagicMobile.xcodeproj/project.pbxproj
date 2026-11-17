@@ -10,6 +10,7 @@
 		0912866283942DBEE9A4370E /* EndpointStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4418266A8EDFBEB80E1E2566 /* EndpointStore.swift */; };
 		3D8118483C4ED6492AEA13EC /* DirectoryPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63D637DDA384887BF83B8E42 /* DirectoryPickerView.swift */; };
 		5E2F4A6B8C1D3E5F7A9B0C2D /* ServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F3A5B7C9D1E3F5A7B9C1D3E /* ServersView.swift */; };
+		7A1B2C3D4E5F60718293A4B5 /* HistoryCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2C3D4E5F60718293A4B5C6 /* HistoryCache.swift */; };
 		3DA3A1A6D3FEC78DB2B820DB /* ComagicClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78B540DC395A27F69C0208DC /* ComagicClient.swift */; };
 		3FA5491FF852BA7E7EBC21E7 /* ComagicClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68FA9E557619B42941F1A48 /* ComagicClientTests.swift */; };
 		4AD4B401F7344C1C2F22C85D /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E109CA62B3EB4B32D3B505 /* Models.swift */; };
@@ -41,6 +42,7 @@
 		4418266A8EDFBEB80E1E2566 /* EndpointStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndpointStore.swift; sourceTree = "<group>"; };
 		63D637DDA384887BF83B8E42 /* DirectoryPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryPickerView.swift; sourceTree = "<group>"; };
 		6F3A5B7C9D1E3F5A7B9C1D3E /* ServersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServersView.swift; sourceTree = "<group>"; };
+		8B2C3D4E5F60718293A4B5C6 /* HistoryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryCache.swift; sourceTree = "<group>"; };
 		67AF78DE69B732F0C1151AAD /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		78B540DC395A27F69C0208DC /* ComagicClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComagicClient.swift; sourceTree = "<group>"; };
 		8927AD00064BC47283102410 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -85,6 +87,7 @@
 				8927AD00064BC47283102410 /* AppModel.swift */,
 				1BCB8B8340B34B01DB8A29DA /* Assets.xcassets */,
 				78B540DC395A27F69C0208DC /* ComagicClient.swift */,
+				8B2C3D4E5F60718293A4B5C6 /* HistoryCache.swift */,
 				4418266A8EDFBEB80E1E2566 /* EndpointStore.swift */,
 				39974B7A90F561BE1AA9C041 /* Info.plist */,
 				93E109CA62B3EB4B32D3B505 /* Models.swift */,
@@ -212,6 +215,7 @@
 				3DA3A1A6D3FEC78DB2B820DB /* ComagicClient.swift in Sources */,
 				3D8118483C4ED6492AEA13EC /* DirectoryPickerView.swift in Sources */,
 				5E2F4A6B8C1D3E5F7A9B0C2D /* ServersView.swift in Sources */,
+				7A1B2C3D4E5F60718293A4B5 /* HistoryCache.swift in Sources */,
 				0912866283942DBEE9A4370E /* EndpointStore.swift in Sources */,
 				4AD4B401F7344C1C2F22C85D /* Models.swift in Sources */,
 				E7BE4490D50C75B8CD706628 /* PairingView.swift in Sources */,

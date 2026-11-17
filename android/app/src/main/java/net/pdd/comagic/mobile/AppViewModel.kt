@@ -19,6 +19,11 @@ import kotlinx.coroutines.withContext
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val store = SettingsStore(application)
+    private val historyCache = HistoryCache(application)
+
+    private companion object {
+        const val CACHE_TTL_MS = 5 * 60 * 1000L
+    }
     private val _state = MutableStateFlow(
         UiState(endpoint = store.load(), servers = store.loadServers())
     )
@@ -200,6 +205,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openSession(session: SessionRef) {
+        val cached = historyCache.load(session.id)
         _state.update {
             it.copy(
                 sessionID = session.id,
@@ -208,13 +214,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 sessionModel = session.model,
                 sessionDirectory = session.location?.directory ?: "",
                 sessionIDText = session.id,
-                lines = emptyList(),
+                lines = cached?.lines ?: emptyList(),
                 busy = false,
                 pendingPermission = null,
                 error = null
             )
         }
-        reloadHistory()
+        val stale = cached == null || System.currentTimeMillis() - cached.savedAt > CACHE_TTL_MS
+        reloadHistory(force = stale)
         refreshOptions()
         val context = getApplication<Application>()
         context.startForegroundService(AgentStreamService.intent(context, session.id))
@@ -233,6 +240,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeSession() {
+        val current = _state.value
+        if (current.sessionID != null) {
+            historyCache.save(current.sessionID, current.lines)
+        }
         val context = getApplication<Application>()
         context.stopService(Intent(context, AgentStreamService::class.java))
         AgentRepository.stop()
@@ -249,6 +260,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteSession(session: SessionRef) {
+        historyCache.remove(session.id)
         val client = client() ?: return
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
@@ -266,12 +278,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun reloadHistory() {
+    fun reloadHistory(force: Boolean = true) {
         val client = client() ?: return
         val sessionID = _state.value.sessionID ?: return
+        if (!force) {
+            val cached = historyCache.load(sessionID)
+            if (cached != null && System.currentTimeMillis() - cached.savedAt <= CACHE_TTL_MS) return
+        }
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { client.history(sessionID) } }
-                .onSuccess { lines -> _state.update { it.copy(lines = lines) } }
+                .onSuccess { lines ->
+                    historyCache.save(sessionID, lines)
+                    _state.update { it.copy(lines = lines) }
+                }
                 .onFailure { error -> _state.update { it.copy(error = error.message) } }
         }
     }

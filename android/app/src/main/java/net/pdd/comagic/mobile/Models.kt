@@ -212,6 +212,7 @@ fun upsertServer(
     return result to saved
 }
 
+@Serializable
 data class ChatLine(
     val role: String,
     val text: String = "",
@@ -220,6 +221,12 @@ data class ChatLine(
     val toolID: String? = null,
     val toolTitle: String? = null,
     val toolOutput: String? = null
+)
+
+@Serializable
+data class CachedHistory(
+    val savedAt: Long = 0,
+    val lines: List<ChatLine> = emptyList()
 )
 
 data class PermissionAsk(

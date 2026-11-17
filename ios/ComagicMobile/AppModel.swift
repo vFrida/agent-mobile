@@ -166,6 +166,7 @@ final class AppModel: ObservableObject {
         defer { loading = false }
         do {
             try await client.deleteSession(session.id)
+            HistoryCache.shared.remove(session.id)
             if current?.id == session.id { close() }
             sessions.removeAll { $0.id == session.id }
             error = nil
@@ -177,15 +178,20 @@ final class AppModel: ObservableObject {
     func open(_ session: SessionRef) async {
         current = session
         currentDirectory = session.location?.directory ?? endpoint.directory
-        lines = []
+        let cached = HistoryCache.shared.load(session.id)
+        lines = cached?.lines ?? []
         error = nil
         busy = false
-        await loadHistory()
+        let stale = cached == nil || Date().timeIntervalSince(cached!.savedAt) > HistoryCache.ttl
+        await loadHistory(force: stale)
         await loadOptions()
         startStream(session.id)
     }
 
     func close() {
+        if let session = current {
+            HistoryCache.shared.save(session.id, lines: lines)
+        }
         streamTask?.cancel()
         streamTask = nil
         current = nil
@@ -293,10 +299,16 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func loadHistory() async {
+    func loadHistory(force: Bool = true) async {
         guard let client, let session = current else { return }
+        if !force,
+           let cached = HistoryCache.shared.load(session.id),
+           Date().timeIntervalSince(cached.savedAt) <= HistoryCache.ttl {
+            return
+        }
         do {
             let history = try await client.history(session.id)
+            HistoryCache.shared.save(session.id, lines: history)
             if current?.id == session.id { lines = history }
         } catch {
             self.error = error.localizedDescription
