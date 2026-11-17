@@ -357,8 +357,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 withContext(Dispatchers.IO) {
                     client.prompt(sessionID, trimmed, current.sessionAgent, current.sessionModel)
                 }
-            }.onSuccess {
-                reloadHistory()
             }.onFailure { error ->
                 val busy = error is SessionBusyException
                 if (busy) reloadHistory()
@@ -388,8 +386,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val image = getApplication<Application>().prepareImage(uri)
                     client.prompt(sessionID, text, current.sessionAgent, current.sessionModel, image)
                 }
-            }.onSuccess {
-                reloadHistory()
             }.onFailure { error ->
                 val busy = error is SessionBusyException
                 if (busy) reloadHistory()
@@ -449,7 +445,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            "session.idle", "session.execution.succeeded", "session.execution.failed" -> {
+            "session.idle" -> {
+                _state.update { it.copy(busy = false) }
+                reloadHistory()
+            }
+
+            "session.execution.succeeded", "session.execution.failed" -> {
                 _state.update { it.copy(busy = false) }
             }
 
