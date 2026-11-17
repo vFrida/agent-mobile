@@ -513,6 +513,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/config/providers":
             self._list_models()
             return
+        if path == "/path":
+            self._paths(query)
+            return
+        if path == "/api/fs/list":
+            self._fs_list(query)
+            return
         if len(parts) == 3 and parts[0] == "session" and parts[2] == "message":
             self._history(parts[1])
             return
@@ -739,6 +745,48 @@ class Handler(BaseHTTPRequestHandler):
         text = "\n".join(t for t in text_parts if t.strip())
         self.runs.start(ext, meta, text, files)
         self._send_empty()
+
+    def _paths(self, query: dict[str, list[str]]) -> None:
+        directory = (query.get("directory") or [""])[0] or self.default_directory
+        directory = os.path.abspath(os.path.expanduser(directory))
+        home = str(Path.home())
+        self._send_json(
+            200,
+            {
+                "home": home,
+                "state": str(Path.home() / ".local" / "share" / "comagic"),
+                "config": str(Path.home() / ".config" / "comagic"),
+                "worktree": directory,
+                "directory": directory,
+            },
+        )
+
+    def _fs_list(self, query: dict[str, list[str]]) -> None:
+        base = (query.get("location[directory]") or [""])[0] or self.default_directory
+        target = (query.get("path") or [""])[0] or base
+        base = os.path.abspath(os.path.expanduser(base))
+        if not os.path.isabs(target):
+            target = os.path.join(base, target)
+        target = os.path.abspath(os.path.expanduser(target))
+        if not os.path.isdir(target):
+            self._send_json(400, {"error": f"not a directory: {target}"})
+            return
+        entries = []
+        try:
+            with os.scandir(target) as iterator:
+                for entry in iterator:
+                    try:
+                        is_dir = entry.is_dir()
+                    except OSError:
+                        is_dir = False
+                    entries.append(
+                        {"path": entry.path, "type": "directory" if is_dir else "file"}
+                    )
+        except OSError as error:
+            self._send_json(400, {"error": str(error)})
+            return
+        entries.sort(key=lambda item: (item["type"] != "directory", item["path"].lower()))
+        self._send_json(200, {"location": {"directory": base}, "data": entries})
 
     def _list_models(self) -> None:
         try:

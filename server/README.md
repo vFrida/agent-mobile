@@ -55,6 +55,8 @@ python3 server/comagic_server.py --directory /Users/txc --port 4907
 | 流式事件 | `GET /event`（SSE） |
 | 中断 | `POST /api/session/{id}/interrupt` 或 `POST /session/{id}/abort` |
 | 删除会话 | `DELETE /api/session/{id}` |
+| 路径信息 | `GET /path?directory=<dir>` |
+| 目录浏览 | `GET /api/fs/list?location[directory]=<base>&path=<dir>` |
 | 模式列表 | `GET /api/agent` |
 | 模型列表 | `GET /config/providers` |
 | 切换模式 | `POST /api/session/{id}/agent` body `{agent}` |
@@ -72,4 +74,5 @@ python3 server/comagic_server.py --directory /Users/txc --port 4907
 
 - 服务使用 Basic Auth，密码默认随机生成；只建议在可信局域网使用。
 - 该服务等价于把可执行命令的 coding agent 暴露给能访问端口的人，不要直接映射到公网。
+- 新建会话的目录浏览接口可以读取目标机器的目录结构，只对可信设备开放。
 - `--auto` 会自动批准权限请求，也只应在可信环境使用。
