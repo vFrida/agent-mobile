@@ -226,7 +226,16 @@ data class ChatLine(
 @Serializable
 data class CachedHistory(
     val savedAt: Long = 0,
-    val lines: List<ChatLine> = emptyList()
+    val lines: List<ChatLine> = emptyList(),
+    val hasMore: Boolean = false,
+    val oldestID: String? = null,
+    val limit: Int = 20
+)
+
+data class HistoryPage(
+    val lines: List<ChatLine> = emptyList(),
+    val oldestID: String? = null,
+    val hasMore: Boolean = false
 )
 
 data class PermissionAsk(
@@ -268,5 +277,9 @@ data class UiState(
     val error: String? = null,
     val pendingPermission: PermissionAsk? = null,
     val directoryPicker: DirectoryPickerState? = null,
+    val historyHasMore: Boolean = false,
+    val oldestMessageID: String? = null,
+    val historyLimit: Int = 20,
+    val loadingOlder: Boolean = false,
     val streamState: StreamState = StreamState.IDLE
 )

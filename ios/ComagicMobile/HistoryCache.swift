@@ -3,6 +3,9 @@ import Foundation
 struct CachedHistory: Codable {
     var savedAt: Date
     var lines: [ChatLine]
+    var hasMore: Bool = false
+    var oldestID: String?
+    var limit: Int = 20
 }
 
 final class HistoryCache {
@@ -23,9 +26,21 @@ final class HistoryCache {
         return try? JSONDecoder().decode(CachedHistory.self, from: data)
     }
 
-    func save(_ sessionID: String, lines: [ChatLine]) {
+    func save(
+        _ sessionID: String,
+        lines: [ChatLine],
+        hasMore: Bool = false,
+        oldestID: String? = nil,
+        limit: Int = 20
+    ) {
         guard !sessionID.isEmpty, !lines.isEmpty else { return }
-        let payload = CachedHistory(savedAt: Date(), lines: lines)
+        let payload = CachedHistory(
+            savedAt: Date(),
+            lines: lines,
+            hasMore: hasMore,
+            oldestID: oldestID,
+            limit: limit
+        )
         guard let data = try? JSONEncoder().encode(payload) else { return }
         try? data.write(to: url(sessionID), options: .atomic)
     }

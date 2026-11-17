@@ -18,6 +18,10 @@ final class AppModel: ObservableObject {
     @Published var pendingPermission: String?
     @Published var currentDirectory = ""
     @Published var directoryPicker: DirectoryPickerState?
+    @Published var historyHasMore = false
+    @Published var oldestMessageID: String?
+    @Published var historyLimit = 20
+    @Published var loadingOlder = false
 
     var currentAgent: String { current?.agent ?? "-" }
     var currentModelLabel: String {
@@ -180,6 +184,10 @@ final class AppModel: ObservableObject {
         currentDirectory = session.location?.directory ?? endpoint.directory
         let cached = HistoryCache.shared.load(session.id)
         lines = cached?.lines ?? []
+        historyHasMore = cached?.hasMore ?? false
+        oldestMessageID = cached?.oldestID
+        historyLimit = max(cached?.limit ?? 20, 20)
+        loadingOlder = false
         error = nil
         busy = false
         let stale = cached == nil || Date().timeIntervalSince(cached!.savedAt) > HistoryCache.ttl
@@ -190,7 +198,13 @@ final class AppModel: ObservableObject {
 
     func close() {
         if let session = current {
-            HistoryCache.shared.save(session.id, lines: lines)
+            HistoryCache.shared.save(
+                session.id,
+                lines: lines,
+                hasMore: historyHasMore,
+                oldestID: oldestMessageID,
+                limit: historyLimit
+            )
         }
         streamTask?.cancel()
         streamTask = nil
@@ -306,11 +320,55 @@ final class AppModel: ObservableObject {
            Date().timeIntervalSince(cached.savedAt) <= HistoryCache.ttl {
             return
         }
+        let limit = max(historyLimit, 20)
         do {
-            let history = try await client.history(session.id)
-            HistoryCache.shared.save(session.id, lines: history)
-            if current?.id == session.id { lines = history }
+            let page = try await client.history(session.id, limit: limit)
+            HistoryCache.shared.save(
+                session.id,
+                lines: page.lines,
+                hasMore: page.hasMore,
+                oldestID: page.oldestID,
+                limit: limit
+            )
+            if current?.id == session.id {
+                lines = page.lines
+                historyHasMore = page.hasMore
+                oldestMessageID = page.oldestID
+                loadingOlder = false
+            }
         } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func loadOlder() async {
+        guard historyHasMore, !loadingOlder,
+              let client, let session = current,
+              let before = oldestMessageID
+        else { return }
+        loadingOlder = true
+        do {
+            let page = try await client.history(session.id, limit: 20, before: before)
+            let merged = page.lines + lines
+            let oldest = page.oldestID ?? oldestMessageID
+            historyLimit = historyLimit + 20
+            HistoryCache.shared.save(
+                session.id,
+                lines: merged,
+                hasMore: page.hasMore,
+                oldestID: oldest,
+                limit: historyLimit
+            )
+            guard current?.id == session.id else {
+                loadingOlder = false
+                return
+            }
+            lines = merged
+            historyHasMore = page.hasMore
+            oldestMessageID = oldest
+            loadingOlder = false
+        } catch {
+            loadingOlder = false
             self.error = error.localizedDescription
         }
     }

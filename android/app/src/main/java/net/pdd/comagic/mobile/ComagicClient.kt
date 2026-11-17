@@ -43,6 +43,18 @@ class ComagicClient(endpoint: Endpoint) {
     private fun request(path: String): Request.Builder =
         Request.Builder().url("$base$path").header("Authorization", authorization)
 
+    private inline fun <T> blockingWithHeaders(
+        path: String,
+        errorLabel: String,
+        block: (String, okhttp3.Headers) -> T
+    ): T {
+        http.newCall(request(path).get().build()).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw IOException("$errorLabel ${response.code}: ${body.take(300)}")
+            return block(body, response.headers)
+        }
+    }
+
     private inline fun <T> blocking(path: String, errorLabel: String, block: (String) -> T): T {
         http.newCall(request(path).get().build()).execute().use { response ->
             val body = response.body?.string().orEmpty()
@@ -65,10 +77,14 @@ class ComagicClient(endpoint: Endpoint) {
             json.decodeFromString<SessionListResponse>(it).data
         }
 
-    fun history(sessionID: String): List<ChatLine> =
-        blocking("/session/$sessionID/message", "history") { body ->
+    fun history(sessionID: String, limit: Int = 20, before: String? = null): HistoryPage {
+        val path = buildString {
+            append("/session/$sessionID/message?limit=$limit")
+            if (!before.isNullOrBlank()) append("&before=${encode(before)}")
+        }
+        return blockingWithHeaders(path, "history") { body, headers ->
             val messages = json.decodeFromString<List<MessageDto>>(body)
-            messages.mapNotNull { message ->
+            val lines = messages.mapNotNull { message ->
                 val texts = message.parts.filter { it.type == "text" }.map { it.text }.joinToString("")
                 val images = message.parts
                     .filter { it.type == "file" && it.mime?.startsWith("image/") == true && !it.url.isNullOrBlank() }
@@ -100,7 +116,13 @@ class ComagicClient(endpoint: Endpoint) {
                     else -> emptyList()
                 }
             }.flatten()
+            HistoryPage(
+                lines = lines,
+                oldestID = messages.firstOrNull { it.info.id.isNotBlank() }?.info?.id,
+                hasMore = headers["X-History-Has-More"] == "1"
+            )
         }
+    }
 
     fun createSession(directory: String, model: ModelRef, agent: String = "build"): SessionRef {
         val payload = json.encodeToString(

@@ -20,12 +20,25 @@ class HistoryCache(context: Context) {
         return runCatching { json.decodeFromString<CachedHistory>(file.readText()) }.getOrNull()
     }
 
-    fun save(sessionID: String, lines: List<ChatLine>) {
+    fun save(
+        sessionID: String,
+        lines: List<ChatLine>,
+        hasMore: Boolean = false,
+        oldestID: String? = null,
+        limit: Int = 20
+    ) {
         if (sessionID.isBlank() || lines.isEmpty()) return
         runCatching {
             val file = fileFor(sessionID)
             val tmp = File(file.parentFile, "${file.name}.tmp")
-            tmp.writeText(json.encodeToString(CachedHistory(savedAt = System.currentTimeMillis(), lines = lines)))
+            val payload = CachedHistory(
+                savedAt = System.currentTimeMillis(),
+                lines = lines,
+                hasMore = hasMore,
+                oldestID = oldestID,
+                limit = limit
+            )
+            tmp.writeText(json.encodeToString(payload))
             tmp.renameTo(file)
         }
     }

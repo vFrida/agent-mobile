@@ -23,6 +23,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val CACHE_TTL_MS = 5 * 60 * 1000L
+        const val PAGE_SIZE = 20
     }
     private val _state = MutableStateFlow(
         UiState(endpoint = store.load(), servers = store.loadServers())
@@ -215,6 +216,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 sessionDirectory = session.location?.directory ?: "",
                 sessionIDText = session.id,
                 lines = cached?.lines ?: emptyList(),
+                historyHasMore = cached?.hasMore ?: false,
+                oldestMessageID = cached?.oldestID,
+                historyLimit = cached?.limit?.coerceAtLeast(PAGE_SIZE) ?: PAGE_SIZE,
+                loadingOlder = false,
                 busy = false,
                 pendingPermission = null,
                 error = null
@@ -242,7 +247,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun closeSession() {
         val current = _state.value
         if (current.sessionID != null) {
-            historyCache.save(current.sessionID, current.lines)
+            historyCache.save(
+                current.sessionID,
+                current.lines,
+                current.historyHasMore,
+                current.oldestMessageID,
+                current.historyLimit
+            )
         }
         val context = getApplication<Application>()
         context.stopService(Intent(context, AgentStreamService::class.java))
@@ -285,13 +296,59 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val cached = historyCache.load(sessionID)
             if (cached != null && System.currentTimeMillis() - cached.savedAt <= CACHE_TTL_MS) return
         }
+        val limit = _state.value.historyLimit.coerceAtLeast(PAGE_SIZE)
         viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { client.history(sessionID) } }
-                .onSuccess { lines ->
-                    historyCache.save(sessionID, lines)
-                    _state.update { it.copy(lines = lines) }
+            runCatching { withContext(Dispatchers.IO) { client.history(sessionID, limit = limit) } }
+                .onSuccess { page ->
+                    historyCache.save(
+                        sessionID = sessionID,
+                        lines = page.lines,
+                        hasMore = page.hasMore,
+                        oldestID = page.oldestID,
+                        limit = limit
+                    )
+                    _state.update {
+                        it.copy(
+                            lines = page.lines,
+                            historyHasMore = page.hasMore,
+                            oldestMessageID = page.oldestID,
+                            loadingOlder = false
+                        )
+                    }
                 }
                 .onFailure { error -> _state.update { it.copy(error = error.message) } }
+        }
+    }
+
+    fun loadOlder() {
+        val current = _state.value
+        if (current.loadingOlder || !current.historyHasMore) return
+        val before = current.oldestMessageID ?: return
+        val client = client() ?: return
+        val sessionID = current.sessionID ?: return
+        _state.update { it.copy(loadingOlder = true) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { client.history(sessionID, limit = PAGE_SIZE, before = before) }
+            }.onSuccess { page ->
+                val state = _state.value
+                val merged = page.lines + state.lines
+                val hasMore = page.hasMore
+                val oldest = page.oldestID ?: state.oldestMessageID
+                val limit = state.historyLimit + PAGE_SIZE
+                historyCache.save(sessionID, merged, hasMore, oldest, limit)
+                _state.update {
+                    it.copy(
+                        lines = merged,
+                        historyHasMore = hasMore,
+                        oldestMessageID = oldest,
+                        historyLimit = limit,
+                        loadingOlder = false
+                    )
+                }
+            }.onFailure { error ->
+                _state.update { it.copy(loadingOlder = false, error = error.message) }
+            }
         }
     }
 

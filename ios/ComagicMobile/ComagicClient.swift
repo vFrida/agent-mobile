@@ -91,13 +91,18 @@ struct ComagicClient {
     }
 
     private func send(_ request: URLRequest) async throws -> Data {
+        let (data, _) = try await sendWithResponse(request)
+        return data
+    }
+
+    private func sendWithResponse(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw ClientError.badResponse }
         guard (200..<300).contains(http.statusCode) else {
             let text = String(data: data, encoding: .utf8)?.prefix(300) ?? ""
             throw ClientError.http(http.statusCode, String(text))
         }
-        return data
+        return (data, http)
     }
 
     struct Health: Codable {
@@ -134,10 +139,12 @@ struct ComagicClient {
         return session
     }
 
-    func history(_ sessionID: String) async throws -> [ChatLine] {
-        let data = try await send(request("/session/\(sessionID)/message"))
+    func history(_ sessionID: String, limit: Int = 20, before: String? = nil) async throws -> HistoryPage {
+        var query = [URLQueryItem(name: "limit", value: String(limit))]
+        if let before, !before.isEmpty { query.append(URLQueryItem(name: "before", value: before)) }
+        let (data, http) = try await sendWithResponse(request("/session/\(sessionID)/message", query: query))
         let messages = try JSONDecoder().decode([MessageDto].self, from: data)
-        return messages.flatMap { message -> [ChatLine] in
+        let lines = messages.flatMap { message -> [ChatLine] in
             let texts = (message.parts ?? [])
                 .filter { $0.type == "text" }
                 .compactMap { $0.text }
@@ -168,6 +175,11 @@ struct ComagicClient {
                 return []
             }
         }
+        return HistoryPage(
+            lines: lines,
+            oldestID: messages.first(where: { !($0.info.id ?? "").isEmpty })?.info.id,
+            hasMore: http.value(forHTTPHeaderField: "X-History-Has-More") == "1"
+        )
     }
 
     func prompt(

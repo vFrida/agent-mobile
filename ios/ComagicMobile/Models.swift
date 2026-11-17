@@ -142,6 +142,12 @@ struct MessageDto: Codable {
     var parts: [MessagePart]?
 }
 
+struct HistoryPage {
+    var lines: [ChatLine] = []
+    var oldestID: String?
+    var hasMore: Bool = false
+}
+
 struct ChatLine: Identifiable, Hashable, Codable {
     let id = UUID()
     var role: String

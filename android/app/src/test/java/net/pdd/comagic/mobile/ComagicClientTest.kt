@@ -29,9 +29,9 @@ class ComagicClientTest {
         val session = client.createSession("/tmp", model)
 
         client.prompt(session.id, "只回复 ok 两个字母，不要其他内容", "build", model)
-        val lines = client.history(session.id)
-        println(lines.joinToString("\n") { "${it.role}: ${it.text}" })
-        assertTrue(lines.any { it.role == "assistant" && it.text.contains("ok") })
+        val page = client.history(session.id)
+        println(page.lines.joinToString("\n") { "${it.role}: ${it.text}" })
+        assertTrue(page.lines.any { it.role == "assistant" && it.text.contains("ok") })
     }
 
     @Test
