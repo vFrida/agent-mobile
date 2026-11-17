@@ -49,8 +49,14 @@ class ComagicClient(endpoint: Endpoint) {
         }
     }
 
-    fun health(): HealthResponse =
-        blocking("/global/health", "health") { json.decodeFromString(it) }
+    fun health(timeoutMillis: Long = 5_000): HealthResponse {
+        val probe = http.newBuilder().callTimeout(timeoutMillis, TimeUnit.MILLISECONDS).build()
+        return probe.newCall(request("/global/health").get().build()).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw IOException("health ${response.code}: ${body.take(300)}")
+            json.decodeFromString(body)
+        }
+    }
 
     fun listSessions(): List<SessionRef> =
         blocking("/api/session?limit=50&order=desc", "sessions") {

@@ -91,6 +91,7 @@ import net.pdd.comagic.mobile.Endpoint
 import net.pdd.comagic.mobile.ModelRef
 import net.pdd.comagic.mobile.PairPayload
 import net.pdd.comagic.mobile.SessionRef
+import net.pdd.comagic.mobile.ServerStatus
 import net.pdd.comagic.mobile.StreamState
 import net.pdd.comagic.mobile.UiState
 import kotlin.math.roundToInt
@@ -244,6 +245,7 @@ fun PairingScreen(
 fun ServersScreen(
     servers: List<Endpoint>,
     active: Endpoint,
+    statuses: Map<String, ServerStatus>,
     onSelect: (Endpoint) -> Unit,
     onAdd: () -> Unit,
     onEdit: (Endpoint) -> Unit,
@@ -350,6 +352,7 @@ fun ServersScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                ServerAvailability(statuses[server.id])
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     TextButton(onClick = { onEdit(server) }) { Text("编辑") }
                                     TextButton(onClick = { pendingDelete = server }) { Text("删除") }
@@ -365,6 +368,38 @@ fun ServersScreen(
                 onRequest = onRequestIgnoreBattery
             )
         }
+    }
+}
+
+@Composable
+private fun ServerAvailability(status: ServerStatus?) {
+    val color = when {
+        status == null || status.checking -> MaterialTheme.colorScheme.onSurfaceVariant
+        status.online -> Color(0xFF2E7D32)
+        else -> MaterialTheme.colorScheme.error
+    }
+    val label = when {
+        status == null || status.checking -> "检测中…"
+        status.online -> if (status.version.isBlank()) "服务可用" else "服务可用 · ${status.version}"
+        else -> "服务不可用"
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

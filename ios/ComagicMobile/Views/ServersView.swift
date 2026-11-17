@@ -64,6 +64,7 @@ struct ServersView: View {
                     Button("完成") { dismiss() }
                 }
             }
+            .task { await model.refreshServerStatuses() }
             .sheet(item: $editor) { target in
                 NavigationStack {
                     PairingView(editing: .constant(true), initial: target.server, onDone: {
@@ -88,6 +89,26 @@ struct ServersView: View {
             } message: { server in
                 Text("确定删除「\(server.label)」吗？会话仍保留在对应机器上。")
             }
+        }
+    }
+
+    private func statusRow(_ status: ServerAvailability?) -> some View {
+        let resolved = status ?? .checking
+        let color: Color = {
+            switch resolved {
+            case .checking: return Palette.textWeak
+            case .online: return Palette.success
+            case .offline: return Palette.critical
+            }
+        }()
+        return HStack(spacing: 5) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(resolved.label)
+                .font(.system(size: 11))
+                .foregroundStyle(color)
+                .lineLimit(1)
         }
     }
 
@@ -126,6 +147,7 @@ struct ServersView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(Palette.textWeak)
                     .lineLimit(1)
+                statusRow(model.serverStatus[server.id])
             }
             Spacer(minLength: 0)
             if isActive {

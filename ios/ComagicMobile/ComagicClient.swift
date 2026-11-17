@@ -59,10 +59,10 @@ struct ComagicClient {
         return value
     }
 
-    private func request(_ path: String, query: [URLQueryItem] = []) -> URLRequest {
+    private func request(_ path: String, query: [URLQueryItem] = [], timeout: TimeInterval = 60) -> URLRequest {
         var components = URLComponents(string: base + path)!
         if !query.isEmpty { components.queryItems = query }
-        var request = URLRequest(url: components.url!, timeoutInterval: 60)
+        var request = URLRequest(url: components.url!, timeoutInterval: timeout)
         let token = Data("\(endpoint.username):\(endpoint.password)".utf8).base64EncodedString()
         request.setValue("Basic \(token)", forHTTPHeaderField: "Authorization")
         return request
@@ -86,10 +86,18 @@ struct ComagicClient {
         return data
     }
 
+    struct Health: Codable {
+        var healthy: Bool?
+        var version: String?
+    }
+
+    func healthInfo(timeout: TimeInterval = 5) async throws -> Health {
+        let data = try await send(request("/global/health", timeout: timeout))
+        return (try? JSONDecoder().decode(Health.self, from: data)) ?? Health()
+    }
+
     func health() async throws -> Bool {
-        let data = try await send(request("/global/health"))
-        struct Health: Codable { var healthy: Bool? }
-        return (try? JSONDecoder().decode(Health.self, from: data))?.healthy ?? false
+        (try await healthInfo()).healthy ?? false
     }
 
     func listSessions() async throws -> [SessionRef] {

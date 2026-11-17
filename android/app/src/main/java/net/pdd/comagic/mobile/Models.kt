@@ -211,9 +211,17 @@ data class DirectoryPickerState(
     val error: String? = null
 )
 
+data class ServerStatus(
+    val checking: Boolean = true,
+    val online: Boolean = false,
+    val version: String = "",
+    val error: String? = null
+)
+
 data class UiState(
     val endpoint: Endpoint = Endpoint(),
     val servers: List<Endpoint> = emptyList(),
+    val serverStatus: Map<String, ServerStatus> = emptyMap(),
     val sessions: List<SessionRef> = emptyList(),
     val agents: List<AgentInfo> = emptyList(),
     val models: List<ModelInfo> = emptyList(),

@@ -5,6 +5,7 @@ import UIKit
 final class AppModel: ObservableObject {
     @Published var endpoint: Endpoint
     @Published var servers: [Endpoint] = []
+    @Published var serverStatus: [String: ServerAvailability] = [:]
     @Published var sessions: [SessionRef] = []
     @Published var agents: [AgentInfo] = []
     @Published var models: [ModelInfo] = []
@@ -66,6 +67,7 @@ final class AppModel: ObservableObject {
         let wasActive = endpoint.id == server.id
         EndpointStore.shared.remove(server)
         servers = EndpointStore.shared.servers
+        serverStatus[server.id] = nil
         guard wasActive else { return }
         close()
         endpoint = EndpointStore.shared.endpoint
@@ -74,6 +76,32 @@ final class AppModel: ObservableObject {
         models = []
         error = nil
         if endpoint.ready { await refresh() }
+    }
+
+    func refreshServerStatuses() async {
+        let current = servers
+        guard !current.isEmpty else { return }
+        for server in current { serverStatus[server.id] = .checking }
+        let results = await withTaskGroup(of: (String, ServerAvailability).self) { group in
+            for server in current {
+                group.addTask { (server.id, await Self.probe(server)) }
+            }
+            var map: [String: ServerAvailability] = [:]
+            for await (id, status) in group { map[id] = status }
+            return map
+        }
+        let ids = Set(servers.map(\.id))
+        serverStatus = results.filter { ids.contains($0.key) }
+    }
+
+    private static func probe(_ server: Endpoint) async -> ServerAvailability {
+        guard server.ready else { return .offline }
+        do {
+            let health = try await ComagicClient(endpoint: server).healthInfo()
+            return health.healthy == true ? .online(version: health.version ?? "") : .offline
+        } catch {
+            return .offline
+        }
     }
 
     func refresh() async {

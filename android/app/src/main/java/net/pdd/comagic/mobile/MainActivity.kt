@@ -98,6 +98,10 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
         if (state.endpoint.ready) viewModel.refreshSessions()
     }
 
+    LaunchedEffect(serversOpen) {
+        if (serversOpen) viewModel.refreshServerStatuses()
+    }
+
     when {
         state.sessionID != null -> ChatScreen(
             state = state,
@@ -139,6 +143,7 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
         serversOpen -> ServersScreen(
             servers = state.servers,
             active = state.endpoint,
+            statuses = state.serverStatus,
             onSelect = { server ->
                 viewModel.selectServer(server)
                 serversOpen = false

@@ -153,3 +153,25 @@ struct Endpoint: Codable, Identifiable, Hashable {
         return host.isEmpty ? "未命名服务器" : host
     }
 }
+
+enum ServerAvailability: Equatable {
+    case checking
+    case online(version: String)
+    case offline
+
+    var isOnline: Bool {
+        if case .online = self { return true }
+        return false
+    }
+
+    var label: String {
+        switch self {
+        case .checking:
+            return "检测中…"
+        case .online(let version):
+            return version.isEmpty ? "服务可用" : "服务可用 · \(version)"
+        case .offline:
+            return "服务不可用"
+        }
+    }
+}

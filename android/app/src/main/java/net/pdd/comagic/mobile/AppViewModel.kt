@@ -6,6 +6,9 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,7 +89,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val remaining = _state.value.servers.filterNot { it.id == server.id }
         if (_state.value.endpoint.id != server.id) {
             store.saveServers(remaining, _state.value.endpoint.id)
-            _state.update { it.copy(servers = remaining) }
+            _state.update {
+                it.copy(servers = remaining, serverStatus = it.serverStatus - server.id)
+            }
             return
         }
         val next = remaining.firstOrNull() ?: Endpoint()
@@ -103,6 +108,42 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         if (next.ready) refreshSessions()
+    }
+
+    fun refreshServerStatuses() {
+        val servers = _state.value.servers
+        if (servers.isEmpty()) return
+        _state.update { current ->
+            current.copy(serverStatus = servers.associate { it.id to ServerStatus() })
+        }
+        viewModelScope.launch {
+            val results = coroutineScope {
+                servers.map { server ->
+                    async(Dispatchers.IO) { server.id to probe(server) }
+                }.awaitAll()
+            }.toMap()
+            _state.update { current ->
+                current.copy(
+                    serverStatus = current.serverStatus + results.filterKeys { id ->
+                        current.servers.any { it.id == id }
+                    }
+                )
+            }
+        }
+    }
+
+    private fun probe(server: Endpoint): ServerStatus {
+        if (!server.ready) {
+            return ServerStatus(checking = false, error = "未填写地址或密码")
+        }
+        return runCatching { ComagicClient(server).health() }.fold(
+            onSuccess = { health ->
+                ServerStatus(checking = false, online = health.healthy, version = health.version)
+            },
+            onFailure = { error ->
+                ServerStatus(checking = false, error = error.message ?: "无法连接")
+            }
+        )
     }
 
     fun refreshSessions() {
