@@ -1,6 +1,6 @@
 # comagic-mobile
 
-Comagic CLI 的移动客户端：连接开发机上的 `comagic web` 服务，在手机上发消息、看流式输出、审批工具调用。
+Comagic CLI 的移动客户端：连接开发机上的服务，在手机上发消息、看流式输出、审批工具调用。开发机侧可以直接用 `comagic web`，也可以用本仓库自带、不依赖 Web 的 [bridge 服务](server/README.md)。
 
 ## 目录
 
@@ -8,11 +8,22 @@ Comagic CLI 的移动客户端：连接开发机上的 `comagic web` 服务，�
 comagic-mobile/
 ├── android/        Android 客户端（Kotlin + Compose，Gradle）
 ├── ios/            iOS 客户端（SwiftUI，XcodeGen）
+├── server/         自建 bridge 服务（Python，基于 comagic run --format json）
 ├── scripts/        开发机侧配对工具（二维码生成）
 └── docs/           图标等共享素材
 ```
 
 ## 配对
+
+### 方式一：自建 bridge 服务（推荐，不依赖 comagic web）
+
+```bash
+python3 server/comagic_server.py --directory /Users/txc --port 4907
+```
+
+首次启动会打印地址、用户名 `comagic`、随机密码，并生成配对二维码。详见 [server/README.md](server/README.md)。
+
+### 方式二：直接用 comagic web
 
 ```bash
 # 一个终端：起服务 + 打印二维码（自动抓密码和内网地址）
@@ -64,12 +75,21 @@ iOS 单测会读 `/tmp/comagic_test_env.json`（`{"url":..., "pass":...}`）连�
 | 鉴权 | `Authorization: Basic base64(comagic:<启动时随机密码>)` |
 | 会话列表 | `GET /api/session?limit=50&order=desc` |
 | 新建会话 | `POST /api/session` body `{agent, model{id,providerID,variant}, location{directory}}` |
+| 删除会话 | `DELETE /api/session/{id}` |
+| 模式列表 | `GET /api/agent?location[directory]=<dir>`（取 `mode=primary` 且非 hidden） |
+| 模型列表 | `GET /config/providers?directory=<dir>`（聚合 `providers[].models`） |
+| 切换模式 | `POST /api/session/{id}/agent` body `{agent}` |
+| 切换模型 | `POST /api/session/{id}/model` body `{model{id,providerID,variant?}}` |
 | 历史消息 | `GET /session/{id}/message` |
-| 发消息 | `POST /session/{id}/message` body `{parts:[{type:"text",text}], agent, model{providerID,modelID}}` |
+| 发消息 | `POST /session/{id}/message` body `{parts:[{type:"text",text}] 或 parts:[{type:"file",mime,filename,url:"data:..."},{type:"text",text}], agent, model{providerID,modelID}}` |
 | 流式事件 | `GET /event`（SSE，`{id,type,properties}`） |
 | 中断 | `POST /session/{id}/abort` |
 
 注意：`/api/session/{id}/prompt` 只入队不执行，客户端不要用它发消息。
+
+聊天输入框下方可以像 Web 端一样选择模式和模型，切换会同步到当前会话（`/api/session/{id}/agent|model`）。
+
+图片会先压到最长边 1600px 的 JPEG，再以 data URL 放进 `file` part 发送。语音输入走系统语音识别（Android `SpeechRecognizer` / iOS `SFSpeechRecognizer`），识别结果填进输入框后按文本发送，不上传音频。
 
 ## 安全
 
