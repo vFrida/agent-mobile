@@ -105,6 +105,7 @@ fun PairingScreen(
     onCancel: (() -> Unit)?,
     onConnect: (Endpoint) -> Unit
 ) {
+    var name by rememberSaveable(initial.name) { mutableStateOf(initial.name) }
     var baseUrl by rememberSaveable(initial.baseUrl) { mutableStateOf(initial.baseUrl) }
     var username by rememberSaveable(initial.username) { mutableStateOf(initial.username) }
     var password by rememberSaveable(initial.password) { mutableStateOf(initial.password) }
@@ -124,7 +125,14 @@ fun PairingScreen(
                 scanError = null
                 if (payload.password.isNotBlank()) {
                     password = payload.password
-                    onConnect(Endpoint(payload.baseUrl, payload.username, payload.password, directory))
+                    onConnect(
+                        Endpoint(
+                            baseUrl = payload.baseUrl,
+                            username = payload.username,
+                            password = payload.password,
+                            directory = directory
+                        )
+                    )
                 }
             }
         }
@@ -168,6 +176,13 @@ fun PairingScreen(
             }
 
             OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("名称（可选）") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
                 value = baseUrl,
                 onValueChange = { baseUrl = it },
                 label = { Text("服务地址") },
@@ -205,7 +220,8 @@ fun PairingScreen(
             Button(
                 onClick = {
                     onConnect(
-                        Endpoint(
+                        initial.copy(
+                            name = name.trim(),
                             baseUrl = baseUrl,
                             username = username.ifBlank { "comagic" },
                             password = password,
@@ -225,13 +241,137 @@ fun PairingScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun ServersScreen(
+    servers: List<Endpoint>,
+    active: Endpoint,
+    onSelect: (Endpoint) -> Unit,
+    onAdd: () -> Unit,
+    onEdit: (Endpoint) -> Unit,
+    onDelete: (Endpoint) -> Unit,
+    onClose: () -> Unit
+) {
+    var pendingDelete by remember { mutableStateOf<Endpoint?>(null) }
+
+    pendingDelete?.let { server ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("删除服务器") },
+            text = { Text("确定删除「${server.label}」吗？会话仍保留在对应机器上。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(server)
+                    pendingDelete = null
+                }) { Text("删除") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("取消") }
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                navigationIcon = {
+                    TextButton(onClick = onClose) { Text("返回") }
+                },
+                title = {
+                    Column {
+                        Text("服务器")
+                        Text(
+                            "${servers.size} 台已配对",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onAdd) { Text("添加") }
+                }
+            )
+        }
+    ) { padding ->
+        if (servers.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("还没有服务器", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "添加一台运行 comagic web 的机器",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            return@Scaffold
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(servers, key = { it.id }) { server ->
+                val isActive = server.id == active.id
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                    border = if (isActive) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth().clickable { onSelect(server) }
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                server.label,
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isActive) {
+                                Text(
+                                    "当前",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        Text(
+                            server.baseUrl.ifBlank { "未填写地址" },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            server.directory.ifBlank { "未设置工作目录" },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(onClick = { onEdit(server) }) { Text("编辑") }
+                            TextButton(onClick = { pendingDelete = server }) { Text("删除") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun SessionListScreen(
     state: UiState,
     onRefresh: () -> Unit,
     onNew: () -> Unit,
     onOpen: (SessionRef) -> Unit,
     onDelete: (SessionRef) -> Unit,
-    onSettings: () -> Unit
+    onServers: () -> Unit
 ) {
     var pendingDelete by remember { mutableStateOf<SessionRef?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -271,18 +411,21 @@ fun SessionListScreen(
                 title = {
                     Column {
                         Text("会话")
-                        if (state.sessions.isNotEmpty()) {
-                            Text(
-                                "${state.sessions.size} 个会话",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text(
+                            listOfNotNull(
+                                state.endpoint.label.takeIf { it.isNotBlank() },
+                                state.sessions.size.takeIf { it > 0 }?.let { "$it 个会话" }
+                            ).joinToString(" · "),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 },
                 actions = {
                     TextButton(onClick = onRefresh) { Text("刷新") }
-                    TextButton(onClick = onSettings) { Text("设置") }
+                    TextButton(onClick = onServers) { Text("服务器") }
                 }
             )
         }

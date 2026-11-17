@@ -12,11 +12,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val store = SettingsStore(application)
-    private val _state = MutableStateFlow(UiState(endpoint = store.load()))
+    private val _state = MutableStateFlow(
+        UiState(endpoint = store.load(), servers = store.loadServers())
+    )
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
@@ -42,10 +45,69 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         return if (endpoint.ready) ComagicClient(endpoint) else null
     }
 
-    fun connect(endpoint: Endpoint) {
-        store.save(endpoint)
-        _state.update { it.copy(endpoint = endpoint, error = null) }
-        refreshSessions()
+    fun saveServer(endpoint: Endpoint) {
+        val saved = endpoint.copy(
+            id = endpoint.id.ifBlank { UUID.randomUUID().toString() },
+            baseUrl = endpoint.baseUrl.trim().trimEnd('/'),
+            username = endpoint.username.trim().ifBlank { "comagic" },
+            directory = endpoint.directory.trim()
+        )
+        val servers = _state.value.servers.toMutableList().also { list ->
+            val index = list.indexOfFirst { it.id == saved.id }
+            if (index >= 0) list[index] = saved else list.add(saved)
+        }
+        store.saveServers(servers, saved.id)
+        closeSession()
+        _state.update {
+            it.copy(
+                servers = servers,
+                endpoint = saved,
+                sessions = emptyList(),
+                agents = emptyList(),
+                models = emptyList(),
+                error = null
+            )
+        }
+        if (saved.ready) refreshSessions()
+    }
+
+    fun selectServer(server: Endpoint) {
+        if (server.id == _state.value.endpoint.id) return
+        store.saveServers(_state.value.servers, server.id)
+        closeSession()
+        _state.update {
+            it.copy(
+                endpoint = server,
+                sessions = emptyList(),
+                agents = emptyList(),
+                models = emptyList(),
+                error = null
+            )
+        }
+        if (server.ready) refreshSessions()
+    }
+
+    fun deleteServer(server: Endpoint) {
+        val remaining = _state.value.servers.filterNot { it.id == server.id }
+        if (_state.value.endpoint.id != server.id) {
+            store.saveServers(remaining, _state.value.endpoint.id)
+            _state.update { it.copy(servers = remaining) }
+            return
+        }
+        val next = remaining.firstOrNull() ?: Endpoint()
+        store.saveServers(remaining, next.id)
+        closeSession()
+        _state.update {
+            it.copy(
+                servers = remaining,
+                endpoint = next,
+                sessions = emptyList(),
+                agents = emptyList(),
+                models = emptyList(),
+                error = null
+            )
+        }
+        if (next.ready) refreshSessions()
     }
 
     fun refreshSessions() {
@@ -230,8 +292,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun confirmDirectory(path: String) {
         val endpoint = _state.value.endpoint.copy(directory = path)
-        store.save(endpoint)
-        _state.update { it.copy(endpoint = endpoint, directoryPicker = null) }
+        val servers = _state.value.servers.map { if (it.id == endpoint.id) endpoint else it }
+        store.saveServers(servers, endpoint.id)
+        _state.update { it.copy(endpoint = endpoint, servers = servers, directoryPicker = null) }
         newSession(path)
     }
 

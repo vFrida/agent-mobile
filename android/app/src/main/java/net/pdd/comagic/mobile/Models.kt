@@ -132,7 +132,10 @@ data class MessageDto(
     val parts: List<PartDto> = emptyList()
 )
 
+@Serializable
 data class Endpoint(
+    val id: String = "",
+    val name: String = "",
     val baseUrl: String = "",
     val username: String = "comagic",
     val password: String = "",
@@ -140,6 +143,14 @@ data class Endpoint(
 ) {
     val ready: Boolean
         get() = baseUrl.isNotBlank() && password.isNotBlank()
+
+    val label: String
+        get() = name.ifBlank {
+            baseUrl.trim()
+                .removePrefix("https://")
+                .removePrefix("http://")
+                .ifBlank { "未命名服务器" }
+        }
 }
 
 data class ChatLine(
@@ -164,6 +175,7 @@ data class DirectoryPickerState(
 
 data class UiState(
     val endpoint: Endpoint = Endpoint(),
+    val servers: List<Endpoint> = emptyList(),
     val sessions: List<SessionRef> = emptyList(),
     val agents: List<AgentInfo> = emptyList(),
     val models: List<ModelInfo> = emptyList(),

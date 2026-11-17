@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -22,6 +23,7 @@ import net.pdd.comagic.mobile.ui.ChatScreen
 import net.pdd.comagic.mobile.ui.DirectoryPickerScreen
 import net.pdd.comagic.mobile.ui.ComagicTheme
 import net.pdd.comagic.mobile.ui.PairingScreen
+import net.pdd.comagic.mobile.ui.ServersScreen
 import net.pdd.comagic.mobile.ui.SessionListScreen
 
 class MainActivity : ComponentActivity() {
@@ -40,7 +42,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun Root(state: UiState, viewModel: AppViewModel) {
-    var editing by rememberSaveable { mutableStateOf(false) }
+    var serversOpen by rememberSaveable { mutableStateOf(false) }
+    var serverEditor by remember { mutableStateOf<Endpoint?>(null) }
 
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -81,14 +84,35 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onCancel = viewModel::closeDirectoryPicker
         )
 
-        !state.endpoint.ready || editing -> PairingScreen(
-            initial = state.endpoint,
+        serverEditor != null -> PairingScreen(
+            initial = serverEditor!!,
             error = state.error,
-            onCancel = if (state.endpoint.ready) ({ editing = false }) else null,
+            onCancel = { serverEditor = null },
             onConnect = { endpoint ->
-                viewModel.connect(endpoint)
-                editing = false
+                viewModel.saveServer(endpoint)
+                serverEditor = null
+                serversOpen = false
             }
+        )
+
+        !state.endpoint.ready -> PairingScreen(
+            initial = Endpoint(),
+            error = state.error,
+            onCancel = null,
+            onConnect = { endpoint -> viewModel.saveServer(endpoint) }
+        )
+
+        serversOpen -> ServersScreen(
+            servers = state.servers,
+            active = state.endpoint,
+            onSelect = { server ->
+                viewModel.selectServer(server)
+                serversOpen = false
+            },
+            onAdd = { serverEditor = Endpoint() },
+            onEdit = { serverEditor = it },
+            onDelete = viewModel::deleteServer,
+            onClose = { serversOpen = false }
         )
 
         else -> SessionListScreen(
@@ -97,7 +121,7 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onNew = viewModel::openDirectoryPicker,
             onOpen = viewModel::openSession,
             onDelete = viewModel::deleteSession,
-            onSettings = { editing = true }
+            onServers = { serversOpen = true }
         )
     }
 }
