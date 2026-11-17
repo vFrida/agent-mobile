@@ -5,6 +5,7 @@ struct SessionListView: View {
     @Binding var editing: Bool
     @State private var pendingDelete: SessionRef?
     @State private var query = ""
+    @State private var showingServers = false
 
     private var filtered: [SessionRef] {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -86,6 +87,12 @@ struct SessionListView: View {
         }
         .navigationTitle("会话")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Text(model.endpoint.label)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.textWeak)
+                    .lineLimit(1)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     Task { await model.refresh() }
@@ -95,9 +102,9 @@ struct SessionListView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    editing = true
+                    showingServers = true
                 } label: {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "server.rack")
                 }
             }
             ToolbarItem(placement: .bottomBar) {
@@ -110,6 +117,10 @@ struct SessionListView: View {
             }
         }
         .refreshable { await model.refresh() }
+        .sheet(isPresented: $showingServers) {
+            ServersView()
+                .environmentObject(model)
+        }
     }
 
     private func row(_ session: SessionRef) -> some View {

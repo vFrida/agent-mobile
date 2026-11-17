@@ -5,26 +5,94 @@ final class EndpointStore {
     static let shared = EndpointStore()
 
     private let defaults = UserDefaults.standard
-    private let baseKey = "comagic.baseURL"
-    private let userKey = "comagic.username"
-    private let dirKey = "comagic.directory"
-    private let passwordKey = "comagic.password"
+    private let serversKey = "comagic.servers"
+    private let activeKey = "comagic.activeServer"
+    private let legacyBaseKey = "comagic.baseURL"
+    private let legacyUserKey = "comagic.username"
+    private let legacyDirKey = "comagic.directory"
+    private let legacyPasswordKey = "comagic.password"
+
+    private var migrated = false
+
+    var activeID: String {
+        defaults.string(forKey: activeKey) ?? ""
+    }
+
+    var servers: [Endpoint] {
+        migrateIfNeeded()
+        return storedServers()
+    }
 
     var endpoint: Endpoint {
-        get {
-            Endpoint(
-                baseURL: defaults.string(forKey: baseKey) ?? "",
-                username: defaults.string(forKey: userKey) ?? "comagic",
-                password: Keychain.read(passwordKey) ?? "",
-                directory: defaults.string(forKey: dirKey) ?? ""
-            )
+        let all = servers
+        return all.first { $0.id == activeID } ?? all.first ?? Endpoint()
+    }
+
+    var legacyEndpoint: Endpoint {
+        Endpoint(
+            id: UUID().uuidString,
+            baseURL: defaults.string(forKey: legacyBaseKey) ?? "",
+            username: defaults.string(forKey: legacyUserKey) ?? "comagic",
+            password: Keychain.read(legacyPasswordKey) ?? "",
+            directory: defaults.string(forKey: legacyDirKey) ?? ""
+        )
+    }
+
+    @discardableResult
+    func upsert(_ endpoint: Endpoint) -> Endpoint {
+        var saved = endpoint
+        if saved.id.isEmpty { saved.id = UUID().uuidString }
+        var list = servers
+        if let index = list.firstIndex(where: { $0.id == saved.id }) {
+            list[index] = saved
+        } else if let index = list.firstIndex(where: { existing in
+            existing.baseURL == saved.baseURL && existing.username == saved.username
+        }) {
+            saved.id = list[index].id
+            list[index] = saved
+        } else {
+            list.append(saved)
         }
-        set {
-            defaults.set(newValue.baseURL, forKey: baseKey)
-            defaults.set(newValue.username, forKey: userKey)
-            defaults.set(newValue.directory, forKey: dirKey)
-            Keychain.write(passwordKey, value: newValue.password)
-        }
+        persist(list, activeID: saved.id)
+        return saved
+    }
+
+    func activate(_ endpoint: Endpoint) {
+        defaults.set(endpoint.id, forKey: activeKey)
+    }
+
+    func remove(_ endpoint: Endpoint) {
+        var list = servers
+        list.removeAll { $0.id == endpoint.id }
+        let active = activeID == endpoint.id ? (list.first?.id ?? "") : activeID
+        persist(list, activeID: active)
+    }
+
+    private func storedServers() -> [Endpoint] {
+        guard let raw = Keychain.read(serversKey),
+              !raw.isEmpty,
+              let data = Data(base64Encoded: raw),
+              let list = try? JSONDecoder().decode([Endpoint].self, from: data)
+        else { return [] }
+        return list
+    }
+
+    private func persist(_ list: [Endpoint], activeID: String) {
+        let encoded = (try? JSONEncoder().encode(list))?.base64EncodedString() ?? ""
+        Keychain.write(serversKey, value: encoded)
+        defaults.set(activeID, forKey: activeKey)
+    }
+
+    private func migrateIfNeeded() {
+        guard !migrated else { return }
+        migrated = true
+        guard storedServers().isEmpty else { return }
+        let legacy = legacyEndpoint
+        guard !legacy.baseURL.isEmpty else { return }
+        persist([legacy], activeID: legacy.id)
+        defaults.removeObject(forKey: legacyBaseKey)
+        defaults.removeObject(forKey: legacyUserKey)
+        defaults.removeObject(forKey: legacyDirKey)
     }
 }
 

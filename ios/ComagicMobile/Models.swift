@@ -127,11 +127,24 @@ struct ImageAttachment {
     let dataURL: String
 }
 
-struct Endpoint: Codable {
+struct Endpoint: Codable, Identifiable, Hashable {
+    var id: String = UUID().uuidString
+    var name: String = ""
     var baseURL: String = ""
     var username: String = "comagic"
     var password: String = ""
     var directory: String = ""
 
     var ready: Bool { !baseURL.isEmpty && !password.isEmpty }
+
+    var label: String {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard trimmed.isEmpty else { return trimmed }
+        var host = baseURL.trimmingCharacters(in: .whitespaces)
+        for prefix in ["https://", "http://"] where host.hasPrefix(prefix) {
+            host.removeFirst(prefix.count)
+        }
+        while host.hasSuffix("/") { host.removeLast() }
+        return host.isEmpty ? "未命名服务器" : host
+    }
 }

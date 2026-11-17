@@ -3,7 +3,10 @@ import SwiftUI
 struct PairingView: View {
     @EnvironmentObject private var model: AppModel
     @Binding var editing: Bool
+    var initial: Endpoint? = nil
+    var onDone: (() -> Void)? = nil
 
+    @State private var name = ""
     @State private var baseURL = ""
     @State private var username = "comagic"
     @State private var password = ""
@@ -24,6 +27,7 @@ struct PairingView: View {
             }
 
             Section("连接") {
+                TextField("名称（可选）", text: $name)
                 TextField("http://192.168.1.10:4907", text: $baseURL)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
@@ -73,10 +77,12 @@ struct PairingView: View {
     }
 
     private func load() {
-        baseURL = model.endpoint.baseURL
-        username = model.endpoint.username
-        password = model.endpoint.password
-        directory = model.endpoint.directory
+        let source = initial ?? model.endpoint
+        name = source.name
+        baseURL = source.baseURL
+        username = source.username
+        password = source.password
+        directory = source.directory
     }
 
     private func apply(_ code: String) {
@@ -95,11 +101,16 @@ struct PairingView: View {
     }
 
     private func connect() {
-        var endpoint = Endpoint(baseURL: baseURL, username: username, password: password, directory: directory)
-        endpoint.baseURL = endpoint.baseURL.trimmingCharacters(in: .whitespaces)
+        var endpoint = initial ?? Endpoint()
+        endpoint.name = name.trimmingCharacters(in: .whitespaces)
+        endpoint.baseURL = baseURL.trimmingCharacters(in: .whitespaces)
         while endpoint.baseURL.hasSuffix("/") { endpoint.baseURL.removeLast() }
+        endpoint.username = username
+        endpoint.password = password
+        endpoint.directory = directory
         model.connect(endpoint)
         editing = false
+        onDone?()
         Task { await model.refresh() }
     }
 }

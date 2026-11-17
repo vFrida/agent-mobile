@@ -4,6 +4,7 @@ import UIKit
 @MainActor
 final class AppModel: ObservableObject {
     @Published var endpoint: Endpoint
+    @Published var servers: [Endpoint] = []
     @Published var sessions: [SessionRef] = []
     @Published var agents: [AgentInfo] = []
     @Published var models: [ModelInfo] = []
@@ -32,6 +33,7 @@ final class AppModel: ObservableObject {
     private var streamTask: Task<Void, Never>?
 
     init() {
+        servers = EndpointStore.shared.servers
         endpoint = EndpointStore.shared.endpoint
     }
 
@@ -40,10 +42,38 @@ final class AppModel: ObservableObject {
     }
 
     func connect(_ new: Endpoint) {
-        endpoint = new
-        EndpointStore.shared.endpoint = new
+        let saved = EndpointStore.shared.upsert(new)
+        endpoint = saved
+        servers = EndpointStore.shared.servers
+        close()
         error = nil
         Task { await refresh() }
+    }
+
+    func selectServer(_ server: Endpoint) async {
+        guard server.id != endpoint.id else { return }
+        EndpointStore.shared.activate(server)
+        close()
+        endpoint = server
+        sessions = []
+        agents = []
+        models = []
+        error = nil
+        await refresh()
+    }
+
+    func deleteServer(_ server: Endpoint) async {
+        let wasActive = endpoint.id == server.id
+        EndpointStore.shared.remove(server)
+        servers = EndpointStore.shared.servers
+        guard wasActive else { return }
+        close()
+        endpoint = EndpointStore.shared.endpoint
+        sessions = []
+        agents = []
+        models = []
+        error = nil
+        if endpoint.ready { await refresh() }
     }
 
     func refresh() async {
@@ -198,7 +228,8 @@ final class AppModel: ObservableObject {
     func confirmDirectory(_ path: String) async {
         guard !path.isEmpty else { return }
         endpoint.directory = path
-        EndpointStore.shared.endpoint = endpoint
+        endpoint = EndpointStore.shared.upsert(endpoint)
+        servers = EndpointStore.shared.servers
         directoryPicker = nil
         await newSession(directory: path)
     }
