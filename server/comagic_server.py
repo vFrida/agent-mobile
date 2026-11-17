@@ -62,7 +62,12 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def run_cli(args: list[str], timeout: float = 60, cwd: str | None = None) -> str:
+def run_cli(
+    args: list[str],
+    timeout: float = 60,
+    cwd: str | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> str:
     # Write stdout to a regular file: the comagic CLI truncates very large
     # payloads (e.g. session exports with inline images) when stdout is a pipe.
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as out:
@@ -73,6 +78,7 @@ def run_cli(args: list[str], timeout: float = 60, cwd: str | None = None) -> str
             text=True,
             timeout=timeout,
             cwd=cwd,
+            env={**os.environ, **extra_env} if extra_env else None,
         )
         out.seek(0)
         output = out.read()
@@ -377,7 +383,7 @@ def list_cli_sessions(limit: int = 100) -> list[dict]:
 
 
 def list_models() -> list[dict]:
-    output = run_cli(["models", "--verbose"], timeout=60)
+    output = run_cli(["models", "--verbose"], timeout=60, extra_env={"OPENCODE_CLIENT": "acp"})
     decoder = json.JSONDecoder()
     models: list[dict] = []
     index = 0

@@ -216,7 +216,10 @@ data class ChatLine(
     val role: String,
     val text: String = "",
     val tool: String? = null,
-    val image: String? = null
+    val image: String? = null,
+    val toolID: String? = null,
+    val toolTitle: String? = null,
+    val toolOutput: String? = null
 )
 
 data class PermissionAsk(

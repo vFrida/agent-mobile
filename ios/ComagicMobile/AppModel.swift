@@ -262,9 +262,18 @@ final class AppModel: ObservableObject {
         await newSession(directory: path)
     }
 
+    private func defaultModel() -> ModelRef? {
+        let deepseek = models.first { model in
+            [model.id, model.providerID ?? "", model.name ?? ""].contains {
+                $0.localizedCaseInsensitiveContains("deepseek")
+            }
+        }
+        return deepseek?.ref() ?? current?.model ?? models.first?.ref()
+    }
+
     func newSession(directory: String) async {
         guard let client else { return }
-        guard let model = current?.model ?? models.first?.ref() ?? sessions.compactMap({ $0.model }).first else {
+        guard let model = defaultModel() ?? sessions.compactMap({ $0.model }).first else {
             error = "没有可用模型：先打开一个已有会话"
             return
         }

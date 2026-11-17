@@ -349,8 +349,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun newSession(directory: String) {
         val client = client() ?: return
         val current = _state.value
-        val model = current.sessionModel
-            ?: current.models.firstOrNull()?.ref()
+        val model = pickDefaultModel(current.models, current.sessionModel)
             ?: current.sessions.firstNotNullOfOrNull { it.model }
         if (model == null) {
             _state.update { it.copy(error = "没有可用模型：先打开一个已有会话再新建") }
