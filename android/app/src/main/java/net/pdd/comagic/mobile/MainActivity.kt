@@ -111,6 +111,7 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onSelectModel = viewModel::selectModel,
             onInterrupt = viewModel::interrupt,
             onBack = viewModel::closeSession,
+            onLoadOlder = viewModel::loadOlder,
             onPermission = viewModel::replyPermission
         )
 

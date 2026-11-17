@@ -9,6 +9,7 @@ struct ChatView: View {
     @State private var holding = false
     @State private var photoItem: PhotosPickerItem?
     @State private var showActions = false
+    @State private var atBottom = true
     @State private var showPhotoPicker = false
     @State private var pendingImage: UIImage?
     @State private var pendingData: Data?
@@ -20,6 +21,22 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
+                        if model.historyHasMore || model.loadingOlder {
+                            Button {
+                                Task { await model.loadOlder() }
+                            } label: {
+                                if model.loadingOlder {
+                                    ProgressView()
+                                } else {
+                                    Text("加载更早消息")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(Palette.accentBlue)
+                                }
+                            }
+                            .disabled(model.loadingOlder)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                        }
                         ForEach(model.lines) { line in
                             row(line).id(line.id)
                         }
@@ -32,8 +49,30 @@ struct ChatView: View {
                         if let error = model.error {
                             Text(error).font(.caption).foregroundStyle(.red)
                         }
+                        Color.clear
+                            .frame(height: 1)
+                            .onAppear { atBottom = true }
+                            .onDisappear { atBottom = false }
                     }
                     .padding(12)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if !atBottom {
+                        Button {
+                            if let last = model.lines.last {
+                                withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.down")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Palette.accentBlue)
+                                .frame(width: 34, height: 34)
+                                .background(Palette.assistantBubble, in: Circle())
+                                .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
+                        }
+                        .padding(.trailing, 14)
+                        .padding(.bottom, 10)
+                    }
                 }
                 .background(
                     LinearGradient(
@@ -42,8 +81,8 @@ struct ChatView: View {
                         endPoint: .bottom
                     )
                 )
-                .onChange(of: model.lines.count) {
-                    if let last = model.lines.last {
+                .onChange(of: model.lines.last) { _, last in
+                    if let last {
                         withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                     }
                 }
@@ -412,15 +451,6 @@ struct ChatView: View {
         }
     }
 
-    private static func toolTint(_ name: String?) -> Color {
-        let value = (name ?? "").lowercased()
-        if value.contains("write") || value.contains("edit") || value.contains("patch") { return Palette.accentOrange }
-        if value.contains("read") || value.contains("grep") || value.contains("glob") { return Palette.sendGreen }
-        if value.contains("web") || value.contains("fetch") { return Palette.accentPurple }
-        if value.contains("todo") || value.contains("task") { return Palette.accentRed }
-        return Palette.accentBlue
-    }
-
     private static func image(from source: String) -> UIImage? {
         guard source.hasPrefix("data:"), let comma = source.firstIndex(of: ",") else { return nil }
         let encoded = String(source[source.index(after: comma)...])
@@ -441,30 +471,7 @@ struct ChatView: View {
                             in: UnevenRoundedRectangle(topLeadingRadius: 10, bottomLeadingRadius: 10,
                                                        bottomTrailingRadius: 2, topTrailingRadius: 10))
         case "tool":
-            let tint = Self.toolTint(line.tool)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Circle().fill(Palette.textWeak).frame(width: 6, height: 6)
-                    Text("\(line.tool ?? "tool")")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(tint)
-                }
-                if let title = line.toolTitle {
-                    Text(title)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(Palette.textStrong)
-                }
-                if let output = line.toolOutput {
-                    Text(String(output.prefix(1500)))
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(Palette.textWeak)
-                        .lineLimit(12)
-                        .truncationMode(.tail)
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            ToolBubbleView(line: line)
         case "error":
             Text(line.text)
                 .font(.system(size: 12))
@@ -479,6 +486,71 @@ struct ChatView: View {
                 .background(Palette.assistantBubbleTint,
                             in: UnevenRoundedRectangle(topLeadingRadius: 10, bottomLeadingRadius: 2,
                                                        bottomTrailingRadius: 10, topTrailingRadius: 10))
+        }
+    }
+}
+
+private func toolTintColor(_ name: String?) -> Color {
+    let value = (name ?? "").lowercased()
+    if value.contains("write") || value.contains("edit") || value.contains("patch") { return Palette.accentOrange }
+    if value.contains("read") || value.contains("grep") || value.contains("glob") { return Palette.sendGreen }
+    if value.contains("web") || value.contains("fetch") { return Palette.accentPurple }
+    if value.contains("todo") || value.contains("task") { return Palette.accentRed }
+    return Palette.accentBlue
+}
+
+private struct ToolBubbleView: View {
+    let line: ChatLine
+    @State private var expanded = false
+
+    private var tint: Color { toolTintColor(line.tool) }
+
+    private var output: String? {
+        guard let value = line.toolOutput?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty
+        else { return nil }
+        return value
+    }
+
+    private var expandable: Bool {
+        guard let output else { return false }
+        return output.components(separatedBy: "\n").count > 4
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Circle().fill(tint).frame(width: 6, height: 6)
+                Text(line.tool ?? "tool")
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(tint)
+            }
+            if let title = line.toolTitle, !title.isEmpty {
+                Text(title)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(Palette.textBase)
+            }
+            if let output {
+                Text(String(output.prefix(4000)))
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Palette.textWeak)
+                    .lineLimit(expanded ? nil : 4)
+                    .truncationMode(.tail)
+            }
+            if expandable {
+                Text(expanded ? "收起" : "展开")
+                    .font(.system(size: 11))
+                    .foregroundStyle(tint)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if expandable {
+                withAnimation { expanded.toggle() }
+            }
         }
     }
 }

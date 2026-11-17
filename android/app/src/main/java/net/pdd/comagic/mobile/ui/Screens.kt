@@ -50,6 +50,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,7 +63,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -1083,6 +1086,7 @@ fun ChatScreen(
     onSelectModel: (ModelRef) -> Unit,
     onInterrupt: () -> Unit,
     onBack: () -> Unit,
+    onLoadOlder: () -> Unit,
     onPermission: (String) -> Unit
 ) {
     var draft by rememberSaveable(state.sessionID) { mutableStateOf("") }
@@ -1142,8 +1146,20 @@ fun ChatScreen(
         if (recording) voice.stop()
     }
 
-    LaunchedEffect(state.lines.size) {
-        if (state.lines.isNotEmpty()) listState.animateScrollToItem(state.lines.lastIndex)
+    var lastAutoScrollLine by remember(state.sessionID) { mutableStateOf<ChatLine?>(null) }
+    LaunchedEffect(state.lines) {
+        val last = state.lines.lastOrNull() ?: return@LaunchedEffect
+        if (lastAutoScrollLine == null || last != lastAutoScrollLine) {
+            lastAutoScrollLine = last
+            listState.animateScrollToItem(state.lines.lastIndex)
+        }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.isScrollInProgress }
+            .collect { (index, scrolling) ->
+                if (index == 0 && scrolling && state.historyHasMore && !state.loadingOlder) onLoadOlder()
+            }
     }
 
     state.pendingPermission?.let { ask ->
@@ -1189,13 +1205,39 @@ fun ChatScreen(
         ) {
             SessionInfoBar(directory = state.sessionDirectory)
 
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(state.lines) { line -> MessageBubble(line) }
+            val scope = rememberCoroutineScope()
+            val atBottom by remember { derivedStateOf { !listState.canScrollForward } }
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    state = listState,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (state.loadingOlder) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            }
+                        }
+                    }
+                    items(state.lines) { line -> MessageBubble(line) }
+                }
+                if (!atBottom) {
+                    SmallFloatingActionButton(
+                        onClick = {
+                            if (state.lines.isNotEmpty()) {
+                                scope.launch { listState.animateScrollToItem(state.lines.lastIndex) }
+                            }
+                        },
+                        containerColor = AssistantBubbleColor,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 14.dp, bottom = 10.dp)
+                    ) {
+                        Text("↓", style = MaterialTheme.typography.titleMedium, color = AccentBlue)
+                    }
+                }
             }
 
             state.error?.let {
@@ -1627,6 +1669,8 @@ private fun MessageBubble(line: ChatLine) {
     }
 }
 
+private const val COLLAPSED_TOOL_LINES = 4
+
 private fun toolTint(name: String?): Color {
     val value = name.orEmpty().lowercase()
     return when {
@@ -1641,6 +1685,9 @@ private fun toolTint(name: String?): Color {
 @Composable
 private fun ToolBubble(line: ChatLine) {
     val tint = toolTint(line.tool)
+    val output = line.toolOutput?.takeIf { it.isNotBlank() }?.trim()
+    val expandable = output != null && (output.count { it == '\n' } + 1) > COLLAPSED_TOOL_LINES
+    var expanded by remember(line.toolID, output) { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center
@@ -1649,7 +1696,8 @@ private fun ToolBubble(line: ChatLine) {
             modifier = Modifier
                 .widthIn(max = 300.dp)
                 .background(tint.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp, vertical = 7.dp),
+                .padding(horizontal = 10.dp, vertical = 7.dp)
+                .clickable(enabled = expandable) { expanded = !expanded },
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
@@ -1664,13 +1712,20 @@ private fun ToolBubble(line: ChatLine) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            line.toolOutput?.takeIf { it.isNotBlank() }?.let {
+            output?.let {
                 Text(
-                    it.trim().take(1500),
+                    it.take(4000),
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                     color = SystemTextColor,
-                    maxLines = 12,
+                    maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_TOOL_LINES,
                     overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (expandable) {
+                Text(
+                    if (expanded) "收起" else "展开",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = tint
                 )
             }
         }
