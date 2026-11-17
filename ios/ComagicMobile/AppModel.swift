@@ -278,7 +278,6 @@ final class AppModel: ObservableObject {
 
         do {
             try await client.prompt(session.id, text: text, agent: session.agent, model: session.model)
-            await loadHistory()
         } catch {
             await handlePromptError(error)
         }
@@ -297,7 +296,6 @@ final class AppModel: ObservableObject {
         error = nil
         do {
             try await client.prompt(session.id, text: text, agent: session.agent, model: session.model, image: image)
-            await loadHistory()
         } catch {
             await handlePromptError(error)
         }
@@ -395,7 +393,11 @@ final class AppModel: ObservableObject {
         case "session.tool.failed", "session.error", "message.error":
             lines.append(ChatLine(role: "error", text: event.errorText ?? event.type))
             busy = false
-        case "session.idle", "session.execution.succeeded", "session.execution.failed":
+        case "session.idle":
+            busy = false
+            Task { await loadHistory() }
+
+        case "session.execution.succeeded", "session.execution.failed":
             busy = false
         case "permission.asked":
             pendingPermission = event.requestTitle ?? "需要确认工具调用"
