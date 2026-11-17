@@ -8,6 +8,8 @@ struct ChatView: View {
     @State private var voiceMode = false
     @State private var holding = false
     @State private var photoItem: PhotosPickerItem?
+    @State private var showActions = false
+    @State private var showPhotoPicker = false
     @State private var pendingImage: UIImage?
     @State private var pendingData: Data?
     @StateObject private var speech = SpeechInput()
@@ -25,7 +27,7 @@ struct ChatView: View {
                         if model.reconnecting {
                             Text("连接断开，正在重连…")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Palette.accentOrange)
                         }
                         if let error = model.error {
                             Text(error).font(.caption).foregroundStyle(.red)
@@ -33,7 +35,13 @@ struct ChatView: View {
                     }
                     .padding(12)
                 }
-                .background(Palette.background)
+                .background(
+                    LinearGradient(
+                        colors: [Palette.chatGradientTop, Palette.chatGradientBottom],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
                 .onChange(of: model.lines.count) {
                     if let last = model.lines.last {
                         withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
@@ -129,8 +137,11 @@ struct ChatView: View {
                             )
                     }
 
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        Image(systemName: "plus.circle")
+                    Button {
+                        showActions.toggle()
+                        if showActions { voiceMode = false }
+                    } label: {
+                        Image(systemName: showActions ? "xmark.circle" : "plus.circle")
                             .font(.system(size: 22))
                             .foregroundStyle(Palette.textStrong)
                     }
@@ -145,7 +156,7 @@ struct ChatView: View {
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundStyle(.white)
                                 .frame(width: 38, height: 38)
-                                .background(Palette.textStrong, in: Circle())
+                                .background(Palette.sendGreen, in: Circle())
                                 .opacity(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy ? 0.35 : 1)
                         }
                         .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy)
@@ -154,12 +165,19 @@ struct ChatView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Palette.background)
+            .background(Palette.inputBar)
+
+            if showActions {
+                actionPanel
+            }
 
             selectorBar
+
         }
         .navigationTitle(model.current?.title ?? "会话")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Palette.topBarTint, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button("返回") { model.close() }
@@ -170,6 +188,7 @@ struct ChatView: View {
                 }
             }
         }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .alert("需要确认", isPresented: .constant(model.pendingPermission != nil)) {
             Button("知道了") { model.pendingPermission = nil }
         } message: {
@@ -192,7 +211,7 @@ struct ChatView: View {
     }
 
     private var selectorBar: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             Menu {
                 ForEach(model.agents) { agent in
                     Button {
@@ -207,7 +226,10 @@ struct ChatView: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text(model.currentAgent == "-" ? "模式" : model.currentAgent)
+                    Text("模式")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Palette.accentBlue)
+                    Text(model.currentAgent == "-" ? "build" : model.currentAgent)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Palette.textStrong)
                         .lineLimit(1)
@@ -216,6 +238,8 @@ struct ChatView: View {
                         .foregroundStyle(Palette.textWeak)
                 }
             }
+
+            Spacer()
 
             Menu {
                 ForEach(model.models, id: \.self) { item in
@@ -227,6 +251,9 @@ struct ChatView: View {
                 }
             } label: {
                 HStack(spacing: 4) {
+                    Text("模型")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Palette.accentOrange)
                     Text(model.currentModelLabel)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Palette.textStrong)
@@ -236,56 +263,86 @@ struct ChatView: View {
                         .foregroundStyle(Palette.textWeak)
                 }
             }
-
-            Spacer()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
-        .background(Palette.background)
+        .background(Palette.inputBar)
         .overlay(alignment: .top) {
-            Rectangle().fill(Palette.border).frame(height: 1)
+            Rectangle().fill(Palette.border.opacity(0.6)).frame(height: 1)
         }
     }
 
     private var infoBar: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 6) {
-                Text("目录").font(.caption2).foregroundStyle(.secondary)
-                Text(model.currentDirectory.isEmpty ? "未设置" : model.currentDirectory)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.textStrong)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            HStack(spacing: 6) {
-                Text("agent").font(.caption2).foregroundStyle(.secondary)
-                Text("\(model.currentAgent)  ·  \(model.currentModelLabel)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.textBase)
-                    .lineLimit(1)
-            }
-            Text(model.currentID)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 6) {
+            Text("目录").font(.caption2).foregroundStyle(.secondary)
+            Text(model.currentDirectory.isEmpty ? "未设置" : model.currentDirectory)
+                .font(.system(size: 12))
+                .foregroundStyle(Palette.accentBlue)
                 .lineLimit(1)
                 .truncationMode(.middle)
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Palette.background)
+        .background(Color(red: 0.961, green: 0.976, blue: 1.0))
         .overlay(alignment: .bottom) {
             Rectangle().fill(Palette.border).frame(height: 1)
         }
     }
 
     private func row(_ line: ChatLine) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            if line.role != "user" { agentAvatar }
-            bubble(line)
-                .frame(maxWidth: .infinity, alignment: line.role == "user" ? .trailing : .leading)
-            if line.role == "user" { userAvatar }
+        Group {
+            if line.role == "tool" || line.role == "error" {
+                bubble(line)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    if line.role != "user" { agentAvatar }
+                    bubble(line)
+                        .frame(maxWidth: .infinity, alignment: line.role == "user" ? .trailing : .leading)
+                    if line.role == "user" { userAvatar }
+                }
+            }
         }
+    }
+
+    private var actionPanel: some View {
+        HStack(alignment: .top, spacing: 26) {
+            actionItem("图", "相片", tint: Palette.accentBlue, enabled: true) {
+                showActions = false
+                showPhotoPicker = true
+            }
+            actionItem("音", "语音", tint: Palette.sendGreen, enabled: true) {
+                showActions = false
+                voiceMode = true
+            }
+            actionItem("断", "中断", tint: Palette.accentRed, enabled: model.busy) {
+                showActions = false
+                Task { await model.interrupt() }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(Palette.inputBar)
+    }
+
+    private func actionItem(_ glyph: String, _ label: String, tint: Color, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Text(glyph)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(enabled ? Color.white : Palette.systemText)
+                    .frame(width: 52, height: 52)
+                    .background(enabled ? tint : Color(red: 0.92, green: 0.92, blue: 0.92),
+                                in: RoundedRectangle(cornerRadius: 12))
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundStyle(enabled ? Palette.textBase : Palette.systemText)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 
     private var agentAvatar: some View {
@@ -306,7 +363,7 @@ struct ChatView: View {
 
     private var userAvatar: some View {
         ZStack {
-            Circle().fill(Color.accentColor.opacity(0.85))
+            Circle().fill(Palette.accentBlue)
             Text("我")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.white)
@@ -355,6 +412,15 @@ struct ChatView: View {
         }
     }
 
+    private static func toolTint(_ name: String?) -> Color {
+        let value = (name ?? "").lowercased()
+        if value.contains("write") || value.contains("edit") || value.contains("patch") { return Palette.accentOrange }
+        if value.contains("read") || value.contains("grep") || value.contains("glob") { return Palette.sendGreen }
+        if value.contains("web") || value.contains("fetch") { return Palette.accentPurple }
+        if value.contains("todo") || value.contains("task") { return Palette.accentRed }
+        return Palette.accentBlue
+    }
+
     private static func image(from source: String) -> UIImage? {
         guard source.hasPrefix("data:"), let comma = source.firstIndex(of: ",") else { return nil }
         let encoded = String(source[source.index(after: comma)...])
@@ -371,15 +437,17 @@ struct ChatView: View {
                 .foregroundStyle(Palette.textStrong)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Palette.surfaceWeak, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.border, lineWidth: 1))
+                .background(Palette.userBubble,
+                            in: UnevenRoundedRectangle(topLeadingRadius: 10, bottomLeadingRadius: 10,
+                                                       bottomTrailingRadius: 2, topTrailingRadius: 10))
         case "tool":
+            let tint = Self.toolTint(line.tool)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Circle().fill(Palette.textWeak).frame(width: 6, height: 6)
                     Text("\(line.tool ?? "tool")")
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(Palette.textBase)
+                        .foregroundStyle(tint)
                 }
                 if let title = line.toolTitle {
                     Text(title)
@@ -396,18 +464,21 @@ struct ChatView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.border, lineWidth: 1))
+            .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
         case "error":
-            Text(line.text).font(.system(size: 13)).foregroundStyle(Palette.critical)
+            Text(line.text)
+                .font(.system(size: 12))
+                .foregroundStyle(Palette.critical)
+                .frame(maxWidth: .infinity, alignment: .center)
         default:
             Text(line.text.isEmpty ? "思考中…" : line.text)
                 .font(.system(size: 14))
                 .foregroundStyle(Palette.textStrong)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.border, lineWidth: 1))
+                .background(Palette.assistantBubbleTint,
+                            in: UnevenRoundedRectangle(topLeadingRadius: 10, bottomLeadingRadius: 2,
+                                                       bottomTrailingRadius: 10, topTrailingRadius: 10))
         }
     }
 }

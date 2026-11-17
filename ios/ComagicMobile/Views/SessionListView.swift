@@ -130,10 +130,10 @@ struct SessionListView: View {
             HStack(alignment: .top, spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(Palette.surfaceWeak)
+                        .fill(Palette.sessionPalette[abs(session.id.hashValue) % Palette.sessionPalette.count])
                     Image(systemName: "terminal")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Palette.textStrong)
+                        .foregroundStyle(.white)
                 }
                 .frame(width: 38, height: 38)
 

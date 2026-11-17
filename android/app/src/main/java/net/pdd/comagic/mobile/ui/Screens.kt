@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,6 +39,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -54,6 +56,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,7 +70,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
@@ -76,6 +81,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -97,6 +103,29 @@ import net.pdd.comagic.mobile.UiState
 import kotlin.math.roundToInt
 import net.pdd.comagic.mobile.VoiceInput
 import net.pdd.comagic.mobile.decodeImageSource
+
+private val ChatBackground = Color(0xFFEDEDED)
+private val UserBubbleColor = Color(0xFF95EC69)
+private val AssistantBubbleColor = Color(0xFFFFFFFF)
+private val InputBarColor = Color(0xFFF7F7F7)
+private val SystemTextColor = Color(0xFF9B9B9B)
+private val SendButtonColor = Color(0xFF07C160)
+private val AccentBlue = Color(0xFF4C9EEA)
+private val AccentRed = Color(0xFFFA5151)
+private val AccentOrange = Color(0xFFFF9F0A)
+private val SoftBlue = Color(0xFFEDF5FF)
+private val SoftGreen = Color(0xFFEAF9EF)
+private val AccentPurple = Color(0xFF8B5CF6)
+private val TopBarTint = Color(0xFFF1FAF4)
+private val AssistantBubbleTint = Color(0xFFFBFDFF)
+private val SessionPalette = listOf(
+    Color(0xFF4C9EEA),
+    Color(0xFF07C160),
+    Color(0xFFFF9F0A),
+    Color(0xFF8B5CF6),
+    Color(0xFFEC4899),
+    Color(0xFF14B8A6)
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -674,6 +703,21 @@ private fun SessionCard(
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val tint = SessionPalette[(session.id.hashCode() and 0x7fffffff) % SessionPalette.size]
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(tint),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        title.take(1),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
                 Text(
                     title,
                     style = MaterialTheme.typography.titleSmall,
@@ -707,8 +751,8 @@ private fun SessionCard(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                sessionBadge(session.agent.ifBlank { "build" })
-                modelLabel?.takeIf { it.isNotBlank() }?.let { sessionBadge(it) }
+                sessionBadge(session.agent.ifBlank { "build" }, AccentBlue)
+                modelLabel?.takeIf { it.isNotBlank() }?.let { sessionBadge(it, AccentOrange) }
                 Spacer(Modifier.weight(1f))
                 Box {
                     TextButton(
@@ -733,15 +777,15 @@ private fun SessionCard(
 }
 
 @Composable
-private fun sessionBadge(text: String) {
+private fun sessionBadge(text: String, tint: Color = Color(0xFF6F6F6F)) {
     Text(
         text,
         style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = tint,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
+            .background(tint.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp)
     )
 }
@@ -1046,6 +1090,7 @@ fun ChatScreen(
     var recording by remember { mutableStateOf(false) }
     var voiceError by remember { mutableStateOf<String?>(null) }
     var pendingImage by remember { mutableStateOf<Uri?>(null) }
+    var showActions by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val listState = rememberLazyListState()
 
@@ -1117,29 +1162,38 @@ fun ChatScreen(
 
     Scaffold(
         modifier = Modifier.imePadding(),
+        containerColor = ChatBackground,
         topBar = {
             TopAppBar(
-                title = { Text(state.sessionTitle) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = TopBarTint),
+                title = {
+                    Text(
+                        state.sessionTitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
                 navigationIcon = { TextButton(onClick = onBack) { Text("返回") } },
                 actions = {
-                    if (state.busy) TextButton(onClick = onInterrupt) { Text("中断") }
+                    if (state.busy) TextButton(onClick = onInterrupt) { Text("中断", color = AccentRed) }
                 }
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            SessionInfoBar(
-                directory = state.sessionDirectory,
-                agent = state.sessionAgent,
-                model = state.sessionModel,
-                sessionID = state.sessionIDText
-            )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(Brush.verticalGradient(listOf(Color(0xFFF3F6FA), Color(0xFFEBEFF4))))
+        ) {
+            SessionInfoBar(directory = state.sessionDirectory)
 
             LazyColumn(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 state = listState,
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(state.lines) { line -> MessageBubble(line) }
             }
@@ -1149,7 +1203,7 @@ fun ChatScreen(
                     it,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp)
                 )
             }
 
@@ -1158,25 +1212,13 @@ fun ChatScreen(
                     it,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp)
                 )
             }
 
             when (state.streamState) {
-                StreamState.RECONNECTING -> Text(
-                    "连接断开，正在重连…",
-                    color = MaterialTheme.colorScheme.secondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-
-                StreamState.CONNECTING -> Text(
-                    "正在连接…",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-
+                StreamState.RECONNECTING -> SystemNotice("连接断开，正在重连…", AccentOrange)
+                StreamState.CONNECTING -> SystemNotice("正在连接…", AccentBlue)
                 else -> Unit
             }
 
@@ -1184,7 +1226,9 @@ fun ChatScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .background(AssistantBubbleColor, RoundedCornerShape(10.dp))
+                        .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -1201,132 +1245,247 @@ fun ChatScreen(
                             draft = ""
                             pendingImage = null
                         },
-                        enabled = !state.busy
+                        enabled = !state.busy,
+                        colors = ButtonDefaults.buttonColors(containerColor = SendButtonColor)
                     ) { Text("发送") }
                 }
             }
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .background(InputBarColor)
+                    .padding(top = 8.dp)
             ) {
-                TextButton(
-                    onClick = {
-                        voiceMode = !voiceMode
-                        if (voiceMode) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .clickable {
+                                voiceMode = !voiceMode
+                                if (voiceMode) {
+                                    val granted = ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.RECORD_AUDIO
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                    if (!granted) recordPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(if (voiceMode) R.drawable.ic_keyboard else R.drawable.ic_mic),
+                            contentDescription = if (voiceMode) "键盘输入" else "语音输入",
+                            modifier = Modifier.size(22.dp),
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
+                        )
+                    }
+
+                    if (voiceMode) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (recording) MaterialTheme.colorScheme.surfaceVariant else AssistantBubbleColor)
+                                .border(
+                                    1.dp,
+                                    if (recording) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .pointerInput(voiceMode) {
+                                    detectTapGestures(
+                                        onPress = {
+                                            startRecording()
+                                            tryAwaitRelease()
+                                            stopRecording()
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                if (recording) "松开结束" else "按住 说话",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (recording) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            color = AssistantBubbleColor
+                        ) {
+                            TextField(
+                                value = draft,
+                                onValueChange = { draft = it },
+                                placeholder = { Text("给 agent 发消息") },
+                                maxLines = 5,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    disabledContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent
+                                )
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable { showActions = !showActions },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if (showActions) "×" else "+",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (!voiceMode && draft.isNotBlank()) {
+                        Button(
+                            onClick = {
+                                onSend(draft)
+                                draft = ""
+                                showActions = false
+                            },
+                            enabled = !state.busy,
+                            colors = ButtonDefaults.buttonColors(containerColor = SendButtonColor),
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            modifier = Modifier.height(40.dp)
+                        ) { Text("发送") }
+                    }
+                }
+
+                if (showActions) {
+                    ChatActionPanel(
+                        busy = state.busy,
+                        onPhoto = {
+                            showActions = false
+                            imagePicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        onVoice = {
+                            showActions = false
+                            voiceMode = true
                             val granted = ContextCompat.checkSelfPermission(
                                 context,
                                 Manifest.permission.RECORD_AUDIO
                             ) == PackageManager.PERMISSION_GRANTED
                             if (!granted) recordPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    },
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) { Text(if (voiceMode) "键盘" else "语音") }
-
-                if (voiceMode) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(
-                                if (recording) MaterialTheme.colorScheme.surfaceVariant
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
-                            .border(
-                                1.dp,
-                                if (recording) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outline,
-                                RoundedCornerShape(22.dp)
-                            )
-                            .pointerInput(voiceMode) {
-                                detectTapGestures(
-                                    onPress = {
-                                        startRecording()
-                                        tryAwaitRelease()
-                                        stopRecording()
-                                    }
-                                )
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            if (recording) "松开结束" else "按住 说话",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (recording) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(22.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        TextField(
-                            value = draft,
-                            onValueChange = { draft = it },
-                            placeholder = { Text("给 agent 发消息") },
-                            maxLines = 5,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent
-                            )
-                        )
-                    }
-                }
-
-                TextButton(
-                    onClick = {
-                        imagePicker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) { Text("+", style = MaterialTheme.typography.titleLarge) }
-
-                if (!voiceMode) {
-                    Button(
-                        onClick = {
-                            onSend(draft)
-                            draft = ""
                         },
-                        enabled = draft.isNotBlank() && !state.busy,
-                        shape = CircleShape,
-                        contentPadding = PaddingValues(0.dp),
-                        modifier = Modifier.size(48.dp)
-                    ) { Text("↑", style = MaterialTheme.typography.titleLarge) }
+                        onInterrupt = {
+                            showActions = false
+                            onInterrupt()
+                        }
+                    )
                 }
-            }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .padding(bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                SelectorChip(
-                    label = state.sessionAgent.ifBlank { "模式" },
-                    options = state.agents.map { it.id to it.id },
-                    onSelect = onSelectAgent
-                )
-                SelectorChip(
-                    label = modelLabel(state),
-                    options = state.models.map { it.name.ifBlank { it.id } to it.ref() },
-                    onSelect = onSelectModel
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(top = 6.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    SelectorChip(
+                        prefix = "模式",
+                        prefixColor = AccentBlue,
+                        label = state.sessionAgent.ifBlank { "build" },
+                        options = state.agents.map { it.id to it.id },
+                        onSelect = onSelectAgent
+                    )
+                    SelectorChip(
+                        prefix = "模型",
+                        prefixColor = AccentOrange,
+                        label = modelLabel(state),
+                        options = state.models.map { it.name.ifBlank { it.id } to it.ref() },
+                        onSelect = onSelectModel
+                    )
+                }
+
             }
         }
+    }
+}
+
+@Composable
+private fun SystemNotice(text: String, color: Color = SystemTextColor) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        textAlign = TextAlign.Center
+    )
+}
+
+@Composable
+private fun ChatActionPanel(
+    busy: Boolean,
+    onPhoto: () -> Unit,
+    onVoice: () -> Unit,
+    onInterrupt: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        ChatAction("图", "相片", AccentBlue, onPhoto)
+        ChatAction("音", "语音", SendButtonColor, onVoice)
+        ChatAction("断", "中断", AccentRed, onInterrupt, enabled = busy)
+    }
+}
+
+@Composable
+private fun ChatAction(
+    glyph: String,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (enabled) tint else Color(0xFFEAEAEA)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                glyph,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (enabled) Color.White else SystemTextColor
+            )
+        }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else SystemTextColor
+        )
     }
 }
 
@@ -1342,21 +1501,32 @@ private fun modelLabel(state: UiState): String {
 private fun <T> SelectorChip(
     label: String,
     options: List<Pair<String, T>>,
-    onSelect: (T) -> Unit
+    onSelect: (T) -> Unit,
+    prefix: String? = null,
+    prefixColor: Color = Color(0xFF6F6F6F)
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         TextButton(
             onClick = { expanded = true },
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
         ) {
+            if (!prefix.isNullOrBlank()) {
+                Text(
+                    "$prefix  ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = prefixColor,
+                    maxLines = 1
+                )
+            }
             Text(
                 label,
                 style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(" ▾", style = MaterialTheme.typography.labelMedium)
+            Text(" ▾", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { (name, value) ->
@@ -1403,68 +1573,106 @@ private fun LocalImage(source: String, modifier: Modifier = Modifier, corner: In
 @Composable
 private fun MessageBubble(line: ChatLine) {
     val isUser = line.role == "user"
-    val background = when (line.role) {
-        "user" -> MaterialTheme.colorScheme.surfaceVariant
-        "tool" -> MaterialTheme.colorScheme.surface
-        "error" -> MaterialTheme.colorScheme.errorContainer
-        else -> MaterialTheme.colorScheme.surface
-    }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-    ) {
-        if (!isUser) {
-            AgentAvatar()
-            Spacer(Modifier.width(8.dp))
-        }
-        Box(
-            modifier = Modifier
-                .weight(1f, fill = false)
-                .background(background, RoundedCornerShape(10.dp))
-                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+    when (line.role) {
+        "tool" -> ToolBubble(line)
+        "error" -> SystemNotice(line.text)
+        else -> Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.Top
         ) {
-            when {
-                line.image != null -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    LocalImage(source = line.image!!, modifier = Modifier.size(180.dp), corner = 8)
-                    if (line.text.isNotBlank()) {
-                        Text(line.text, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                line.role == "tool" -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "▸ ${line.tool ?: "tool"}",
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            if (!isUser) {
+                AgentAvatar()
+                Spacer(Modifier.width(8.dp))
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .background(
+                        if (isUser) UserBubbleColor else AssistantBubbleTint,
+                        RoundedCornerShape(
+                            topStart = 10.dp,
+                            topEnd = 10.dp,
+                            bottomStart = if (isUser) 10.dp else 2.dp,
+                            bottomEnd = if (isUser) 2.dp else 10.dp
+                        )
                     )
-                    line.toolTitle?.takeIf { it.isNotBlank() }?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                when {
+                    line.image != null -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        LocalImage(source = line.image!!, modifier = Modifier.size(180.dp), corner = 8)
+                        if (line.text.isNotBlank()) {
+                            Text(line.text, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
-                    line.toolOutput?.takeIf { it.isNotBlank() }?.let {
-                        Text(
-                            it.trim().take(1500),
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 12,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    line.role == "assistant" -> Text(
+                        line.text.ifBlank { "思考中…" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    else -> Text(
+                        line.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
-                line.role == "assistant" -> Text(
-                    line.text.ifBlank { "思考中…" },
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                else -> Text(line.text, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (isUser) {
+                Spacer(Modifier.width(8.dp))
+                UserAvatar()
             }
         }
-        if (isUser) {
-            Spacer(Modifier.width(8.dp))
-            UserAvatar()
+    }
+}
+
+private fun toolTint(name: String?): Color {
+    val value = name.orEmpty().lowercase()
+    return when {
+        value.contains("write") || value.contains("edit") || value.contains("patch") -> AccentOrange
+        value.contains("read") || value.contains("grep") || value.contains("glob") -> SendButtonColor
+        value.contains("web") || value.contains("fetch") -> AccentPurple
+        value.contains("todo") || value.contains("task") -> AccentRed
+        else -> AccentBlue
+    }
+}
+
+@Composable
+private fun ToolBubble(line: ChatLine) {
+    val tint = toolTint(line.tool)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 300.dp)
+                .background(tint.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                "▸ ${line.tool ?: "tool"}",
+                style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                color = tint
+            )
+            line.toolTitle?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            line.toolOutput?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    it.trim().take(1500),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                    color = SystemTextColor,
+                    maxLines = 12,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -1492,52 +1700,27 @@ private fun UserAvatar() {
         modifier = Modifier
             .size(28.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary),
+            .background(AccentBlue),
         contentAlignment = Alignment.Center
     ) {
         Text(
             "我",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimary
+            color = Color.White
         )
     }
 }
 
 @Composable
-private fun SessionInfoBar(directory: String, agent: String, model: ModelRef?, sessionID: String) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
-        ) {
-            Text(
-                directory.ifBlank { "未设置工作目录" },
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    buildString {
-                        append(agent.ifBlank { "-" })
-                        model?.let { append(" · ").append(it.providerID).append('/').append(it.id) }
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            if (sessionID.isNotBlank()) {
-                Text(
-                    sessionID,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
+private fun SessionInfoBar(directory: String) {
+    Surface(color = Color(0xFFF5F9FF), modifier = Modifier.fillMaxWidth()) {
+        Text(
+            directory.ifBlank { "未设置工作目录" },
+            style = MaterialTheme.typography.bodySmall,
+            color = AccentBlue,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        )
     }
 }
