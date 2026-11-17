@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +42,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -83,6 +85,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.pdd.comagic.mobile.ChatLine
+import net.pdd.comagic.mobile.DirectoryPickerState
 import net.pdd.comagic.mobile.R
 import net.pdd.comagic.mobile.Endpoint
 import net.pdd.comagic.mobile.ModelRef
@@ -551,6 +554,270 @@ private fun relativeTime(ms: Long): String {
         diff < 172_800_000 -> "昨天"
         else -> java.text.SimpleDateFormat("MM-dd", java.util.Locale.getDefault()).format(java.util.Date(ms))
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DirectoryPickerScreen(
+    picker: DirectoryPickerState,
+    onNavigate: (String) -> Unit,
+    onSelect: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onCancel: () -> Unit
+) {
+    var manualPath by rememberSaveable(picker.current) { mutableStateOf(picker.current) }
+    var manualVisible by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+
+    LaunchedEffect(picker.current) { manualPath = picker.current }
+
+    val directories = remember(picker.entries, query) {
+        val keyword = query.trim()
+        picker.entries
+            .filter { it.type == "directory" }
+            .filter { keyword.isEmpty() || it.path.contains(keyword, ignoreCase = true) }
+            .sortedBy { it.path.lowercase() }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("选择工作目录") },
+                navigationIcon = { TextButton(onClick = onCancel) { Text("取消") } },
+                actions = { TextButton(onClick = onRefresh) { Text("刷新") } }
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "当前目录",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            "${directories.size} 个目录",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        picker.current.ifBlank { "-" },
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        TextButton(
+                            onClick = { parentDirectory(picker.current)?.let(onNavigate) },
+                            enabled = parentDirectory(picker.current) != null && !picker.loading,
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) { Text("上一级") }
+                        TextButton(
+                            onClick = { onNavigate(picker.home) },
+                            enabled = picker.home.isNotBlank() &&
+                                picker.home != picker.current && !picker.loading,
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) { Text("主目录") }
+                        TextButton(
+                            onClick = { manualVisible = !manualVisible },
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) { Text(if (manualVisible) "收起输入" else "手动输入") }
+                    }
+                }
+            }
+
+            if (manualVisible) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = manualPath,
+                        onValueChange = { manualPath = it },
+                        label = { Text("目录路径") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = { if (manualPath.isNotBlank()) onNavigate(manualPath.trim()) },
+                        enabled = manualPath.isNotBlank() && !picker.loading,
+                        contentPadding = PaddingValues(horizontal = 14.dp)
+                    ) { Text("前往") }
+                }
+            }
+
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("筛选子目录") },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            if (picker.loading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
+            picker.error?.let {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
+
+            if (directories.isEmpty() && !picker.loading) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            if (query.isBlank()) "没有子目录" else "没有匹配的目录",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            if (query.isBlank()) "可以直接选择当前目录或手动输入路径" else "换个关键词试试",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(directories, key = { it.path }) { entry ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigate(entry.path) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant,
+                                            RoundedCornerShape(8.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("▸", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        entry.path.substringAfterLast('/')
+                                            .ifBlank { entry.path },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        entry.path,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            "将在此目录创建会话",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            picker.current.ifBlank { "-" },
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Button(
+                        onClick = { onSelect(picker.current) },
+                        enabled = picker.current.isNotBlank() && !picker.loading,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) { Text("选择此目录") }
+                }
+            }
+        }
+    }
+}
+
+private fun parentDirectory(path: String): String? {
+    val trimmed = path.trimEnd('/')
+    if (trimmed.isEmpty()) return null
+    val parent = trimmed.substringBeforeLast('/', "")
+    return parent.ifBlank { "/" }.takeIf { it != path }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

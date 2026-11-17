@@ -86,6 +86,24 @@ data class PromptRequest(
 )
 
 @Serializable
+data class PathInfo(
+    val home: String = "",
+    val state: String = "",
+    val config: String = "",
+    val worktree: String = "",
+    val directory: String = ""
+)
+
+@Serializable
+data class FsEntry(
+    val path: String,
+    val type: String = "directory"
+)
+
+@Serializable
+data class FsListResponse(val data: List<FsEntry> = emptyList())
+
+@Serializable
 data class HealthResponse(
     val healthy: Boolean = false,
     val version: String = ""
@@ -136,6 +154,14 @@ data class PermissionAsk(
     val title: String
 )
 
+data class DirectoryPickerState(
+    val current: String = "",
+    val home: String = "",
+    val entries: List<FsEntry> = emptyList(),
+    val loading: Boolean = false,
+    val error: String? = null
+)
+
 data class UiState(
     val endpoint: Endpoint = Endpoint(),
     val sessions: List<SessionRef> = emptyList(),
@@ -152,5 +178,6 @@ data class UiState(
     val loading: Boolean = false,
     val error: String? = null,
     val pendingPermission: PermissionAsk? = null,
+    val directoryPicker: DirectoryPickerState? = null,
     val streamState: StreamState = StreamState.IDLE
 )

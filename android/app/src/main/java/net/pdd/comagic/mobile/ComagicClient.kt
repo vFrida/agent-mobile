@@ -139,6 +139,27 @@ class ComagicClient(endpoint: Endpoint) {
             }
     }
 
+    fun paths(directory: String): PathInfo =
+        blocking("/path?directory=${encode(directory)}", "path") {
+            json.decodeFromString<PathInfo>(it)
+        }
+
+    fun listEntries(directory: String, path: String): List<FsEntry> =
+        blocking(
+            "/api/fs/list?location%5Bdirectory%5D=${encode(directory)}&path=${encode(path)}",
+            "fs"
+        ) {
+            val base = directory.trimEnd('/').ifBlank { "/" }
+            json.decodeFromString<FsListResponse>(it).data.map { entry ->
+                val absolute = when {
+                    entry.path.startsWith("/") -> entry.path
+                    base == "/" -> "/" + entry.path.trimStart('/')
+                    else -> "$base/${entry.path.trimStart('/')}"
+                }
+                entry.copy(path = absolute.trimEnd('/').ifBlank { "/" })
+            }
+        }
+
     fun listAgents(directory: String): List<AgentInfo> =
         blocking("/api/agent?location%5Bdirectory%5D=${encode(directory)}", "agents") {
             json.decodeFromString<AgentListResponse>(it).data

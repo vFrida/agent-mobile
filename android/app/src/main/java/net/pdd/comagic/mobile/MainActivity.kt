@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.pdd.comagic.mobile.ui.ChatScreen
+import net.pdd.comagic.mobile.ui.DirectoryPickerScreen
 import net.pdd.comagic.mobile.ui.ComagicTheme
 import net.pdd.comagic.mobile.ui.PairingScreen
 import net.pdd.comagic.mobile.ui.SessionListScreen
@@ -72,6 +73,14 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onPermission = viewModel::replyPermission
         )
 
+        state.directoryPicker != null -> DirectoryPickerScreen(
+            picker = state.directoryPicker!!,
+            onNavigate = viewModel::navigateDirectory,
+            onSelect = viewModel::confirmDirectory,
+            onRefresh = viewModel::openDirectoryPicker,
+            onCancel = viewModel::closeDirectoryPicker
+        )
+
         !state.endpoint.ready || editing -> PairingScreen(
             initial = state.endpoint,
             error = state.error,
@@ -85,7 +94,7 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
         else -> SessionListScreen(
             state = state,
             onRefresh = viewModel::refreshSessions,
-            onNew = viewModel::newSession,
+            onNew = viewModel::openDirectoryPicker,
             onOpen = viewModel::openSession,
             onDelete = viewModel::deleteSession,
             onSettings = { editing = true }

@@ -166,7 +166,76 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun newSession() {
+    fun openDirectoryPicker() {
+        val client = client() ?: return
+        val start = _state.value.endpoint.directory
+        _state.update {
+            it.copy(directoryPicker = DirectoryPickerState(loading = true), error = null)
+        }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val paths = runCatching { client.paths(start) }.getOrElse { client.paths("") }
+                    val base = paths.directory.ifBlank { paths.home }
+                    Triple(base, paths.home, client.listEntries(base, base))
+                }
+            }.onSuccess { (base, home, entries) ->
+                _state.update {
+                    it.copy(
+                        directoryPicker = DirectoryPickerState(
+                            current = base,
+                            home = home,
+                            entries = entries,
+                            loading = false
+                        )
+                    )
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        directoryPicker = it.directoryPicker?.copy(
+                            loading = false,
+                            error = error.message
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun navigateDirectory(path: String) {
+        val client = client() ?: return
+        val picker = _state.value.directoryPicker ?: return
+        _state.update {
+            it.copy(directoryPicker = picker.copy(current = path, loading = true, error = null))
+        }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { client.listEntries(path, path) } }
+                .onSuccess { entries ->
+                    _state.update {
+                        it.copy(directoryPicker = it.directoryPicker?.copy(entries = entries, loading = false))
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(directoryPicker = it.directoryPicker?.copy(loading = false, error = error.message))
+                    }
+                }
+        }
+    }
+
+    fun closeDirectoryPicker() {
+        _state.update { it.copy(directoryPicker = null) }
+    }
+
+    fun confirmDirectory(path: String) {
+        val endpoint = _state.value.endpoint.copy(directory = path)
+        store.save(endpoint)
+        _state.update { it.copy(endpoint = endpoint, directoryPicker = null) }
+        newSession(path)
+    }
+
+    fun newSession(directory: String) {
         val client = client() ?: return
         val current = _state.value
         val model = current.sessionModel
@@ -174,11 +243,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             ?: current.sessions.firstNotNullOfOrNull { it.model }
         if (model == null) {
             _state.update { it.copy(error = "没有可用模型：先打开一个已有会话再新建") }
-            return
-        }
-        val directory = current.endpoint.directory.trim()
-        if (directory.isEmpty()) {
-            _state.update { it.copy(error = "请先在设置里填写工作目录，例如 /Users/txc") }
             return
         }
         val agent = current.sessionAgent.takeIf { it.isNotBlank() } ?: "build"
