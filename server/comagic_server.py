@@ -473,12 +473,14 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return hmac.compare_digest(user, self.username) and hmac.compare_digest(password, self.password)
 
-    def _send_json(self, status: int, payload: object) -> None:
+    def _send_json(self, status: int, payload: object, headers: dict[str, str] | None = None) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -541,7 +543,7 @@ class Handler(BaseHTTPRequestHandler):
             self._fs_list(query)
             return
         if len(parts) == 3 and parts[0] == "session" and parts[2] == "message":
-            self._history(parts[1])
+            self._history(parts[1], query)
             return
         self._send_json(404, {"error": "not found"})
 
@@ -691,7 +693,8 @@ class Handler(BaseHTTPRequestHandler):
         )
         self._send_json(200, {"data": session_ref(ext, meta)})
 
-    def _history(self, ext: str) -> None:
+    def _history(self, ext: str, query: dict[str, list[str]] | None = None) -> None:
+        query = query or {}
         meta = self.state.get(ext) or {}
         real = meta.get("real") or ext
         if not real:
@@ -730,7 +733,22 @@ class Handler(BaseHTTPRequestHandler):
                     part["text"] = clean_text(part.get("text"))
                 cleaned.append(part)
             messages.append({"info": info, "parts": cleaned})
-        self._send_json(200, messages)
+
+        limit = int((query.get("limit") or ["20"])[0] or 20)
+        before = (query.get("before") or [""])[0]
+        end = len(messages)
+        if before:
+            for index, message in enumerate(messages):
+                if (message.get("info") or {}).get("id") == before:
+                    end = index
+                    break
+        start = max(end - limit, 0) if limit > 0 else 0
+        window = messages[start:end]
+        self._send_json(
+            200,
+            window,
+            headers={"X-History-Has-More": "1" if start > 0 else "0"},
+        )
 
     def _prompt(self, ext: str) -> None:
         body = self._read_json()
