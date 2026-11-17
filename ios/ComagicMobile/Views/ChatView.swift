@@ -331,7 +331,12 @@ struct ChatView: View {
 
     private func row(_ line: ChatLine) -> some View {
         Group {
-            if line.role == "tool" || line.role == "error" {
+            if line.role == "tool" {
+                bubble(line)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 36)
+                    .padding(.trailing, 12)
+            } else if line.role == "error" {
                 bubble(line)
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
@@ -545,6 +550,7 @@ private struct ToolBubbleView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onTapGesture {

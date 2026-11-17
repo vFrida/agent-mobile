@@ -1689,12 +1689,14 @@ private fun ToolBubble(line: ChatLine) {
     val expandable = output != null && (output.count { it == '\n' } + 1) > COLLAPSED_TOOL_LINES
     var expanded by remember(line.toolID, output) { mutableStateOf(false) }
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 36.dp, end = 12.dp),
+        horizontalArrangement = Arrangement.Start
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 300.dp)
+                .fillMaxWidth()
                 .background(tint.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
                 .padding(horizontal = 10.dp, vertical = 7.dp)
                 .clickable(enabled = expandable) { expanded = !expanded },
