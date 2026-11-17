@@ -20,6 +20,8 @@ import okhttp3.sse.EventSources
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+class SessionBusyException(message: String) : IOException(message)
+
 class ComagicClient(endpoint: Endpoint) {
 
     private val base = endpoint.baseUrl.trimEnd('/')
@@ -134,7 +136,9 @@ class ComagicClient(endpoint: Endpoint) {
         http.newCall(request("/session/$sessionID/message").post(payload).build())
             .execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw IOException("prompt ${response.code}: ${response.body?.string()?.take(300)}")
+                    val body = response.body?.string().orEmpty()
+                    if (response.code == 409) throw SessionBusyException("session is busy")
+                    throw IOException("prompt ${response.code}: ${body.take(300)}")
                 }
             }
     }

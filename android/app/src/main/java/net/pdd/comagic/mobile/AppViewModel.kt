@@ -359,9 +359,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }.onSuccess {
                 reloadHistory()
-                _state.update { it.copy(busy = false) }
             }.onFailure { error ->
-                _state.update { it.copy(busy = false, error = error.message) }
+                val busy = error is SessionBusyException
+                if (busy) reloadHistory()
+                _state.update { it.copy(busy = busy, error = friendlyError(error)) }
             }
         }
     }
@@ -389,9 +390,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }.onSuccess {
                 reloadHistory()
-                _state.update { it.copy(busy = false) }
             }.onFailure { error ->
-                _state.update { it.copy(busy = false, error = error.message) }
+                val busy = error is SessionBusyException
+                if (busy) reloadHistory()
+                _state.update { it.copy(busy = busy, error = friendlyError(error)) }
             }
         }
     }
@@ -416,6 +418,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 .onFailure { error -> _state.update { it.copy(error = error.message) } }
         }
     }
+
+    private fun friendlyError(error: Throwable): String =
+        if (error is SessionBusyException) {
+            "agent 还在执行上一条消息，等它结束或点「中断」后再发"
+        } else {
+            error.message ?: "发送失败"
+        }
 
     fun clearError() {
         _state.update { it.copy(error = null) }
