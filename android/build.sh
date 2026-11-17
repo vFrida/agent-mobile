@@ -17,13 +17,14 @@ CLEAN=0
 
 usage() {
   cat <<'EOF'
-用法: ./build.sh [选项] [debug|release|install|test|clean]
+用法: ./build.sh [选项] [debug|release|install|run|test|clean]
 
   debug     编 debug APK（默认）
   release   编 release APK（需自备签名配置）
   test      跑 JVM 单测（COMAGIC_TEST_URL / COMAGIC_TEST_PASSWORD 指向真实服务）
   clean     清理构建产物
   install   编 debug 并安装到设备
+  run       编 debug、安装、adb reverse 4907 并启动 App
   all       编 debug + 单测 + 安装
 
 选项:
@@ -33,6 +34,7 @@ usage() {
   -h, --help        显示帮助
 
 示例:
+  ./build.sh run
   ./build.sh install --reverse --launch
   PORT=5000 ./build.sh install --reverse=5000
 EOF
@@ -46,6 +48,7 @@ for arg in "$@"; do
     test)       ACTION="test" ;;
     clean)      ACTION="clean" ;;
     install)    ACTION="install"; INSTALL=1 ;;
+    run)        ACTION="run"; INSTALL=1; REVERSE=1; LAUNCH=1 ;;
     all)        ACTION="all"; INSTALL=1; RUN_TESTS=1 ;;
     --reverse=*) REVERSE=1; PORT="${arg#*=}" ;;
     --reverse)  REVERSE=1 ;;
@@ -105,6 +108,7 @@ case "$ACTION" in
   debug)   TASK="assembleDebug" ;;
   release) TASK="assembleRelease" ;;
   install) TASK="assembleDebug"; INSTALL=1 ;;
+  run)     TASK="assembleDebug"; INSTALL=1; REVERSE=1; LAUNCH=1 ;;
   test)    TASK="testDebugUnitTest"; RUN_TESTS=1 ;;
   clean)   TASK="clean"; CLEAN=1 ;;
   all)     TASK="assembleDebug"; RUN_TESTS=1; INSTALL=1 ;;
