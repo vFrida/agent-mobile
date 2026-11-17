@@ -82,9 +82,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -1671,6 +1676,79 @@ private fun MessageBubble(line: ChatLine) {
 
 private const val COLLAPSED_TOOL_LINES = 4
 
+private val BashKeywords = setOf(
+    "sudo", "cd", "ls", "git", "npm", "pnpm", "yarn", "rm", "mv", "cp", "echo", "cat", "grep", "rg",
+    "find", "python", "python3", "bash", "sh", "curl", "docker", "kubectl", "make", "go", "cargo",
+    "sed", "awk", "head", "tail", "xargs", "chmod", "mkdir", "touch", "export", "source"
+)
+
+private fun highlightCommand(text: String): AnnotatedString = buildAnnotatedString {
+    var i = 0
+    while (i < text.length) {
+        val c = text[i]
+        when {
+            c == '#' -> {
+                withStyle(SpanStyle(color = SystemTextColor, fontStyle = FontStyle.Italic)) {
+                    append(text.substring(i))
+                }
+                return@buildAnnotatedString
+            }
+
+            c == '"' || c == '\'' -> {
+                val close = text.indexOf(c, i + 1)
+                val end = if (close < 0) text.length else close + 1
+                withStyle(SpanStyle(color = SendButtonColor)) { append(text.substring(i, end)) }
+                i = end
+            }
+
+            c == ' ' || c == '\t' -> {
+                append(c)
+                i++
+            }
+
+            c == '|' || c == '&' || c == ';' -> {
+                withStyle(SpanStyle(color = AccentPurple)) { append(c) }
+                i++
+            }
+
+            else -> {
+                var end = i
+                while (end < text.length && text[end] !in " \t|&;#\"'") end++
+                val word = text.substring(i, end)
+                val color = when {
+                    word.startsWith("-") -> AccentOrange
+                    word.lowercase() in BashKeywords -> AccentBlue
+                    else -> null
+                }
+                if (color != null) {
+                    withStyle(SpanStyle(color = color)) { append(word) }
+                } else {
+                    append(word)
+                }
+                i = end
+            }
+        }
+    }
+}
+
+private fun highlightOutput(text: String): AnnotatedString = buildAnnotatedString {
+    val lines = text.lines()
+    lines.forEachIndexed { index, line ->
+        val lower = line.lowercase()
+        val color = when {
+            lower.contains("error") || lower.contains("failed") || lower.contains("traceback") -> AccentRed
+            lower.contains("warning") -> AccentOrange
+            else -> null
+        }
+        if (color != null) {
+            withStyle(SpanStyle(color = color)) { append(line) }
+        } else {
+            append(line)
+        }
+        if (index != lines.lastIndex) append("\n")
+    }
+}
+
 private fun toolTint(name: String?): Color {
     val value = name.orEmpty().lowercase()
     return when {
@@ -1709,14 +1787,14 @@ private fun ToolBubble(line: ChatLine) {
             )
             line.toolTitle?.takeIf { it.isNotBlank() }?.let {
                 Text(
-                    it,
+                    highlightCommand(it),
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             output?.let {
                 Text(
-                    it.take(4000),
+                    highlightOutput(it.take(4000)),
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                     color = SystemTextColor,
                     maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_TOOL_LINES,

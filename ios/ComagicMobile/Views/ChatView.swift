@@ -495,6 +495,79 @@ struct ChatView: View {
     }
 }
 
+private let bashKeywords: Set<String> = [
+    "sudo", "cd", "ls", "git", "npm", "pnpm", "yarn", "rm", "mv", "cp", "echo", "cat", "grep", "rg",
+    "find", "python", "python3", "bash", "sh", "curl", "docker", "kubectl", "make", "go", "cargo",
+    "sed", "awk", "head", "tail", "xargs", "chmod", "mkdir", "touch", "export", "source"
+]
+
+private func highlightedCommand(_ text: String) -> AttributedString {
+    var result = AttributedString()
+    var index = text.startIndex
+    let separators = " \t|&;#\"'"
+
+    while index < text.endIndex {
+        let char = text[index]
+
+        if char == "#" {
+            var piece = AttributedString(String(text[index...]))
+            piece.foregroundColor = Palette.systemText
+            result += piece
+            break
+        }
+
+        if char == "\"" || char == "'" {
+            let rest = text[text.index(after: index)...]
+            let end = rest.firstIndex(of: char).map { text.index(after: $0) } ?? text.endIndex
+            var piece = AttributedString(String(text[index..<end]))
+            piece.foregroundColor = Palette.sendGreen
+            result += piece
+            index = end
+            continue
+        }
+
+        if char == " " || char == "\t" || char == "|" || char == "&" || char == ";" {
+            var piece = AttributedString(String(char))
+            if "|&;".contains(char) { piece.foregroundColor = Palette.accentPurple }
+            result += piece
+            index = text.index(after: index)
+            continue
+        }
+
+        var end = index
+        while end < text.endIndex && !separators.contains(text[end]) {
+            end = text.index(after: end)
+        }
+        let word = String(text[index..<end])
+        var piece = AttributedString(word)
+        if word.hasPrefix("-") {
+            piece.foregroundColor = Palette.accentOrange
+        } else if bashKeywords.contains(word.lowercased()) {
+            piece.foregroundColor = Palette.accentBlue
+        }
+        result += piece
+        index = end
+    }
+    return result
+}
+
+private func highlightedOutput(_ text: String) -> AttributedString {
+    var result = AttributedString()
+    let lines = text.components(separatedBy: "\n")
+    for (index, line) in lines.enumerated() {
+        let lower = line.lowercased()
+        var piece = AttributedString(line)
+        if lower.contains("error") || lower.contains("failed") || lower.contains("traceback") {
+            piece.foregroundColor = Palette.accentRed
+        } else if lower.contains("warning") {
+            piece.foregroundColor = Palette.accentOrange
+        }
+        result += piece
+        if index != lines.count - 1 { result += AttributedString("\n") }
+    }
+    return result
+}
+
 private func toolTintColor(_ name: String?) -> Color {
     let value = (name ?? "").lowercased()
     if value.contains("write") || value.contains("edit") || value.contains("patch") { return Palette.accentOrange }
@@ -531,12 +604,12 @@ private struct ToolBubbleView: View {
                     .foregroundStyle(tint)
             }
             if let title = line.toolTitle, !title.isEmpty {
-                Text(title)
+                Text(highlightedCommand(title))
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(Palette.textBase)
             }
             if let output {
-                Text(String(output.prefix(4000)))
+                Text(highlightedOutput(String(output.prefix(4000))))
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(Palette.textWeak)
                     .lineLimit(expanded ? nil : 4)
