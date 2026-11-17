@@ -237,7 +237,9 @@ class RunManager:
             if title:
                 cmd += ["--title", title]
                 self.state.put(ext, title=title)
-        cmd.append(text or "请查看附件")
+        # `-f` is an array option: without `--` the message would be parsed as
+        # another file path ("File not found: ...").
+        cmd += ["--", text or "请查看附件"]
 
         log(f"run {ext}: {COMAGIC_BIN} {' '.join(cmd[1:])}")
         try:
