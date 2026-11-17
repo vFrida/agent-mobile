@@ -13,6 +13,22 @@ comagic-mobile/
 └── docs/           图标等共享素材
 ```
 
+## 开机自启（macOS）
+
+用 `scripts/serve.sh` + LaunchAgent 让 bridge 服务随登录自动启动（固定密码，不会每次重配）：
+
+```bash
+# 注册 LaunchAgent（已注册可跳过）
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.comagic.mobile-server.plist
+
+tail -f ~/Library/Logs/comagic-mobile/server.log
+```
+
+- 固定账号密码：`comagic` / `YFl4cVaQ8smozi4I`（App 新增服务器时已预填），可用 `COMAGIC_MOBILE_USERNAME` / `COMAGIC_MOBILE_PASSWORD` 覆盖。
+- 服务端口 `4907`，监听 `0.0.0.0`，默认目录 `$HOME`，可用 `COMAGIC_MOBILE_PORT` / `COMAGIC_MOBILE_HOST` / `COMAGIC_MOBILE_DIR` 覆盖。
+- 崩溃会自动重启（`KeepAlive`）；停止：`launchctl bootout gui/$(id -u)/com.comagic.mobile-server`。
+- 这是登录后启动；如需开机未登录也启动，需要把 plist 放到 `/Library/LaunchDaemons` 并用 root 加载。
+
 ## 配对
 
 ### 方式一：自建 bridge 服务（推荐，不依赖 comagic web）
