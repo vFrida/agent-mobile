@@ -1,6 +1,8 @@
 package net.pdd.comagic.mobile
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import java.util.UUID
 
 @Serializable
@@ -57,6 +59,15 @@ data class ModelInfo(
     val enabled: Boolean = true
 ) {
     fun ref(variant: String? = null) = ModelRef(id = id, providerID = providerID, variant = variant)
+}
+
+fun pickDefaultModel(models: List<ModelInfo>, sessionModel: ModelRef? = null): ModelRef? {
+    val deepseek = models.firstOrNull { model ->
+        listOf(model.id, model.providerID, model.name).any {
+            it.contains("deepseek", ignoreCase = true)
+        }
+    }
+    return deepseek?.ref() ?: sessionModel ?: models.firstOrNull()?.ref()
 }
 
 @Serializable
@@ -118,13 +129,23 @@ data class MessageInfoDto(
 )
 
 @Serializable
+data class ToolStateDto(
+    val status: String = "",
+    val title: String = "",
+    val input: JsonObject? = null,
+    val output: JsonElement? = null
+)
+
+@Serializable
 data class PartDto(
     val type: String = "",
     val text: String = "",
     val tool: String = "",
     val mime: String? = null,
     val filename: String? = null,
-    val url: String? = null
+    val url: String? = null,
+    val callID: String = "",
+    val state: ToolStateDto? = null
 )
 
 @Serializable

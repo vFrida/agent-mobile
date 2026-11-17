@@ -30,6 +30,15 @@ data class AgentEvent(
         get() = payload.nested("tool")?.firstString("name")
             ?: payload.firstString("toolName", "name")
 
+    val toolID: String?
+        get() = payload.firstString("toolID")
+
+    val toolTitle: String?
+        get() = payload.firstString("title")?.takeIf { it.isNotBlank() }
+
+    val toolOutput: String?
+        get() = payload.firstString("output")?.takeIf { it.isNotBlank() }
+
     val errorText: String?
         get() = payload.nested("error")?.firstString("message")
             ?: payload.firstString("message")

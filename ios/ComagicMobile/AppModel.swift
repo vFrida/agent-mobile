@@ -417,7 +417,19 @@ final class AppModel: ObservableObject {
             guard let delta = event.delta else { return }
             appendAssistant(delta)
         case "session.tool.called":
-            lines.append(ChatLine(role: "tool", tool: event.toolName ?? "tool"))
+            let line = ChatLine(
+                role: "tool",
+                tool: event.toolName ?? "tool",
+                toolID: event.toolID,
+                toolTitle: event.toolTitle,
+                toolOutput: event.toolOutput
+            )
+            if let id = line.toolID, let index = lines.lastIndex(where: { $0.role == "tool" && $0.toolID == id }) {
+                lines[index].toolTitle = line.toolTitle ?? lines[index].toolTitle
+                lines[index].toolOutput = line.toolOutput ?? lines[index].toolOutput
+            } else {
+                lines.append(line)
+            }
         case "session.tool.failed", "session.error", "message.error":
             lines.append(ChatLine(role: "error", text: event.errorText ?? event.type))
             busy = false

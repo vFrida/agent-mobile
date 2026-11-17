@@ -374,11 +374,25 @@ struct ChatView: View {
                 .background(Palette.surfaceWeak, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.border, lineWidth: 1))
         case "tool":
-            HStack(spacing: 6) {
-                Circle().fill(Palette.textWeak).frame(width: 6, height: 6)
-                Text("\(line.tool ?? "tool")")
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(Palette.textBase)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Circle().fill(Palette.textWeak).frame(width: 6, height: 6)
+                    Text("\(line.tool ?? "tool")")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(Palette.textBase)
+                }
+                if let title = line.toolTitle {
+                    Text(title)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(Palette.textStrong)
+                }
+                if let output = line.toolOutput {
+                    Text(String(output.prefix(1500)))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Palette.textWeak)
+                        .lineLimit(12)
+                        .truncationMode(.tail)
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)

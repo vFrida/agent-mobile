@@ -31,6 +31,20 @@ struct AgentEvent {
         return payload["toolName"] as? String ?? payload["name"] as? String
     }
 
+    var toolID: String? {
+        payload["toolID"] as? String
+    }
+
+    var toolTitle: String? {
+        let value = (payload["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? nil : value
+    }
+
+    var toolOutput: String? {
+        let value = (payload["output"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? nil : String(value.prefix(4000))
+    }
+
     var errorText: String? {
         if let error = payload["error"] as? [String: Any], let message = error["message"] as? String {
             return message
@@ -137,13 +151,19 @@ struct ComagicClient {
                 if !texts.isEmpty { lines.append(ChatLine(role: "user", text: texts)) }
                 return lines
             case "assistant":
-                if !texts.isEmpty {
-                    return [ChatLine(role: "assistant", text: texts)] + images.map { ChatLine(role: "assistant", image: $0) }
-                }
-                if let tool = message.parts?.last(where: { $0.type == "tool" })?.tool {
-                    return [ChatLine(role: "tool", tool: tool)]
-                }
-                return images.map { ChatLine(role: "assistant", image: $0) }
+                let toolLines = (message.parts ?? [])
+                    .filter { $0.type == "tool" }
+                    .map { part in
+                        ChatLine(
+                            role: "tool",
+                            tool: part.tool ?? "tool",
+                            toolID: part.callID,
+                            toolTitle: part.toolTitle,
+                            toolOutput: part.toolOutput
+                        )
+                    }
+                let textLines = texts.isEmpty ? [] : [ChatLine(role: "assistant", text: texts)]
+                return toolLines + textLines + images.map { ChatLine(role: "assistant", image: $0) }
             default:
                 return []
             }

@@ -35,6 +35,17 @@ class ComagicClientTest {
     }
 
     @Test
+    fun parseToolEventWithDetails() {
+        val event = AgentEvent.parse(
+            """{"id":"evt_3","type":"session.tool.called","properties":{"sessionID":"ses_1","toolName":"bash","toolID":"call_1","title":"ls -la","output":"total 0"}}"""
+        )
+        assertTrue(event != null)
+        assertTrue(event!!.toolID == "call_1")
+        assertTrue(event.toolTitle == "ls -la")
+        assertTrue(event.toolOutput == "total 0")
+    }
+
+    @Test
     fun parsePairPayload() {
         val payload = PairPayload.parse(
             "comagic://pair?url=http%3A%2F%2F192.168.1.10%3A4907&user=comagic&pass=abc-123&dir=%2FUsers%2Ftxc"

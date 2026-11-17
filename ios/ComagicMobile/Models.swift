@@ -99,6 +99,23 @@ struct MessageInfo: Codable {
     var role: String?
 }
 
+struct PartState: Codable {
+    var status: String?
+    var title: String?
+    var output: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case status, title, output
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        status = try? container.decodeIfPresent(String.self, forKey: .status)
+        title = try? container.decodeIfPresent(String.self, forKey: .title)
+        output = try? container.decodeIfPresent(String.self, forKey: .output)
+    }
+}
+
 struct MessagePart: Codable {
     var type: String?
     var text: String?
@@ -106,6 +123,18 @@ struct MessagePart: Codable {
     var mime: String?
     var filename: String?
     var url: String?
+    var callID: String?
+    var state: PartState?
+
+    var toolTitle: String? {
+        let title = state?.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return title.isEmpty ? nil : title
+    }
+
+    var toolOutput: String? {
+        let output = state?.output?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return output.isEmpty ? nil : String(output.prefix(4000))
+    }
 }
 
 struct MessageDto: Codable {
@@ -119,6 +148,9 @@ struct ChatLine: Identifiable, Hashable {
     var text: String = ""
     var tool: String?
     var image: String?
+    var toolID: String?
+    var toolTitle: String?
+    var toolOutput: String?
 }
 
 struct ImageAttachment {

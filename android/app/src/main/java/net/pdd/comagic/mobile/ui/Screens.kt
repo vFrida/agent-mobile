@@ -1432,11 +1432,29 @@ private fun MessageBubble(line: ChatLine) {
                         Text(line.text, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                line.role == "tool" -> Text(
-                    "▸ ${line.tool ?: "tool"}",
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                line.role == "tool" -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "▸ ${line.tool ?: "tool"}",
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    line.toolTitle?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    line.toolOutput?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            it.trim().take(1500),
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 12,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
                 line.role == "assistant" -> Text(
                     line.text.ifBlank { "思考中…" },
                     style = MaterialTheme.typography.bodyMedium

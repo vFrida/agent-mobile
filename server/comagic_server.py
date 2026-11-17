@@ -319,12 +319,24 @@ class RunManager:
                 self.hub.publish("session.text.delta", {"sessionID": ext, "delta": delta})
         elif kind == "tool_use":
             tool = part.get("tool") or "tool"
-            status = (part.get("state") or {}).get("status")
+            state = part.get("state") or {}
+            status = state.get("status")
+            call_id = part.get("callID") or state.get("callID") or ""
+            title = str(state.get("title") or "")
+            output = state.get("output")
+            output = str(output)[:4000] if output is not None else ""
+            payload = {
+                "sessionID": ext,
+                "toolName": tool,
+                "toolID": call_id,
+                "title": title,
+                "output": output,
+            }
             if status == "error":
-                error = (part.get("state") or {}).get("error") or "工具执行失败"
-                self.hub.publish("session.tool.failed", {"sessionID": ext, "toolName": tool, "message": error})
+                payload["message"] = state.get("error") or "工具执行失败"
+                self.hub.publish("session.tool.failed", payload)
             else:
-                self.hub.publish("session.tool.called", {"sessionID": ext, "toolName": tool})
+                self.hub.publish("session.tool.called", payload)
         elif kind in ("error", "session_error"):
             message = event.get("message") or (event.get("error") or {}).get("message") or "agent 出错"
             self.hub.publish("session.error", {"sessionID": ext, "message": message})

@@ -466,7 +466,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
             "session.tool.called" -> {
                 val name = event.toolName ?: "tool"
-                _state.update { state -> state.copy(lines = state.lines + ChatLine(role = "tool", tool = name)) }
+                val line = ChatLine(
+                    role = "tool",
+                    tool = name,
+                    toolID = event.toolID,
+                    toolTitle = event.toolTitle,
+                    toolOutput = event.toolOutput
+                )
+                _state.update { state ->
+                    val index = line.toolID
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { id -> state.lines.indexOfLast { it.role == "tool" && it.toolID == id } }
+                        ?: -1
+                    if (index < 0) {
+                        state.copy(lines = state.lines + line)
+                    } else {
+                        val old = state.lines[index]
+                        val lines = state.lines.toMutableList()
+                        lines[index] = line.copy(
+                            toolTitle = line.toolTitle ?: old.toolTitle,
+                            toolOutput = line.toolOutput ?: old.toolOutput
+                        )
+                        state.copy(lines = lines)
+                    }
+                }
             }
 
             "session.tool.failed", "session.error", "message.error" -> {

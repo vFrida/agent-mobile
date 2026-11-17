@@ -5,8 +5,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
@@ -79,14 +81,21 @@ class ComagicClient(endpoint: Endpoint) {
                         else -> listOf(ChatLine(role = "user", text = texts))
                     }
                     "assistant" -> {
-                        val tool = message.parts.lastOrNull { it.type == "tool" }?.tool
-                        when {
-                            texts.isNotBlank() -> listOf(ChatLine(role = "assistant", text = texts)) +
-                                images.map { ChatLine(role = "assistant", image = it) }
-                            tool != null -> listOf(ChatLine(role = "tool", tool = tool))
-                            images.isNotEmpty() -> images.map { ChatLine(role = "assistant", image = it) }
-                            else -> emptyList()
+                        val toolLines = message.parts.filter { it.type == "tool" }.map { part ->
+                            ChatLine(
+                                role = "tool",
+                                tool = part.tool.ifBlank { "tool" },
+                                toolID = part.callID.ifBlank { null },
+                                toolTitle = part.toolTitle(),
+                                toolOutput = part.toolOutput()?.take(4000)
+                            )
                         }
+                        val textLines = if (texts.isNotBlank()) {
+                            listOf(ChatLine(role = "assistant", text = texts))
+                        } else {
+                            emptyList()
+                        }
+                        toolLines + textLines + images.map { ChatLine(role = "assistant", image = it) }
                     }
                     else -> emptyList()
                 }
@@ -264,3 +273,10 @@ class ComagicClient(endpoint: Endpoint) {
         private fun encode(value: String): String = java.net.URLEncoder.encode(value, "UTF-8")
     }
 }
+
+private fun PartDto.toolTitle(): String? =
+    state?.title?.takeIf { it.isNotBlank() }
+        ?: (state?.input?.get("command") as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+
+private fun PartDto.toolOutput(): String? =
+    (state?.output as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
