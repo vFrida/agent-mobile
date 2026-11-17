@@ -132,13 +132,18 @@ data class MessageDto(
     val parts: List<PartDto> = emptyList()
 )
 
+object Credentials {
+    const val username = "comagic"
+    const val password = "YFl4cVaQ8smozi4I"
+}
+
 @Serializable
 data class Endpoint(
     val id: String = "",
     val name: String = "",
     val baseUrl: String = "",
-    val username: String = "comagic",
-    val password: String = "",
+    val username: String = Credentials.username,
+    val password: String = Credentials.password,
     val directory: String = ""
 ) {
     val ready: Boolean

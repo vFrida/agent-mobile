@@ -15,7 +15,6 @@ import hmac
 import json
 import os
 import queue
-import secrets
 import shutil
 import signal
 import socket
@@ -31,6 +30,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 DEFAULT_COMAGIC = Path.home() / ".comagic" / "bin" / "comagic"
+DEFAULT_USERNAME = "comagic"
+DEFAULT_PASSWORD = "YFl4cVaQ8smozi4I"
 COMAGIC_BIN = os.environ.get("COMAGIC_BIN") or shutil.which("comagic") or str(DEFAULT_COMAGIC)
 STATE_PATH = Path(
     os.environ.get("COMAGIC_MOBILE_STATE", str(Path.home() / ".comagic-mobile" / "state.json"))
@@ -878,8 +879,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Comagic mobile bridge server")
     parser.add_argument("--host", default=os.environ.get("COMAGIC_MOBILE_HOST", "0.0.0.0"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("COMAGIC_MOBILE_PORT", "4907")))
-    parser.add_argument("--password", default=os.environ.get("COMAGIC_MOBILE_PASSWORD"))
-    parser.add_argument("--username", default=os.environ.get("COMAGIC_MOBILE_USERNAME", "comagic"))
+    parser.add_argument("--password", default=os.environ.get("COMAGIC_MOBILE_PASSWORD") or DEFAULT_PASSWORD)
+    parser.add_argument("--username", default=os.environ.get("COMAGIC_MOBILE_USERNAME") or DEFAULT_USERNAME)
     parser.add_argument("--directory", default=os.environ.get("COMAGIC_MOBILE_DIR", str(Path.cwd())))
     parser.add_argument("--no-qr", action="store_true", help="不打印配对二维码")
     args = parser.parse_args()
@@ -889,7 +890,7 @@ def main() -> int:
         return 1
 
     directory = str(Path(args.directory).expanduser().resolve())
-    password = args.password or secrets.token_urlsafe(12)
+    password = args.password or DEFAULT_PASSWORD
 
     httpd = make_server(args.host, args.port, password, args.username, directory)
     ip = lan_ip() if args.host in ("0.0.0.0", "::") else args.host

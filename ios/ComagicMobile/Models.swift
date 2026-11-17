@@ -127,12 +127,17 @@ struct ImageAttachment {
     let dataURL: String
 }
 
+enum Credentials {
+    static let username = "comagic"
+    static let password = "YFl4cVaQ8smozi4I"
+}
+
 struct Endpoint: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var name: String = ""
     var baseURL: String = ""
-    var username: String = "comagic"
-    var password: String = ""
+    var username: String = Credentials.username
+    var password: String = Credentials.password
     var directory: String = ""
 
     var ready: Bool { !baseURL.isEmpty && !password.isEmpty }

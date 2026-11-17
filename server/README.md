@@ -14,7 +14,7 @@ Android / iOS  ──HTTP+SSE──▶  server/comagic_server.py  ──spawn─
 python3 server/comagic_server.py --directory /Users/txc --port 4907
 ```
 
-首次启动会打印地址、用户名 `comagic`、随机密码，并调用 `scripts/pair-qr.sh` 生成配对二维码。手机 App 扫码或手填即可。
+首次启动会打印地址、用户名 `comagic` 和密码，并调用 `scripts/pair-qr.sh` 生成配对二维码。手机 App 扫码或手填即可。密码默认固定为 `YFl4cVaQ8smozi4I`。
 
 常用参数 / 环境变量：
 
@@ -22,7 +22,7 @@ python3 server/comagic_server.py --directory /Users/txc --port 4907
 | --- | --- | --- |
 | `--host` | `COMAGIC_MOBILE_HOST` | `0.0.0.0` |
 | `--port` | `COMAGIC_MOBILE_PORT` | `4907` |
-| `--password` | `COMAGIC_MOBILE_PASSWORD` | 随机生成 |
+| `--password` | `COMAGIC_MOBILE_PASSWORD` | `YFl4cVaQ8smozi4I` |
 | `--directory` | `COMAGIC_MOBILE_DIR` | 当前目录 |
 | `--no-qr` | – | 不打印二维码 |
 | – | `COMAGIC_BIN` | `comagic` 或 `~/.comagic/bin/comagic` |
@@ -72,7 +72,7 @@ python3 server/comagic_server.py --directory /Users/txc --port 4907
 
 ## 安全
 
-- 服务使用 Basic Auth，密码默认随机生成；只建议在可信局域网使用。
+- 服务使用 Basic Auth，密码默认固定为 `YFl4cVaQ8smozi4I`；只建议在可信局域网使用，必要时用 `--password` 覆盖。
 - 该服务等价于把可执行命令的 coding agent 暴露给能访问端口的人，不要直接映射到公网。
 - 新建会话的目录浏览接口可以读取目标机器的目录结构，只对可信设备开放。
 - `--auto` 会自动批准权限请求，也只应在可信环境使用。

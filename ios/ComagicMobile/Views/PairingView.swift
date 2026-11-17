@@ -8,8 +8,8 @@ struct PairingView: View {
 
     @State private var name = ""
     @State private var baseURL = ""
-    @State private var username = "comagic"
-    @State private var password = ""
+    @State private var username = Credentials.username
+    @State private var password = Credentials.password
     @State private var directory = ""
     @State private var scanning = false
     @State private var scanError: String?

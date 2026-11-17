@@ -32,7 +32,7 @@ final class EndpointStore {
         Endpoint(
             id: UUID().uuidString,
             baseURL: defaults.string(forKey: legacyBaseKey) ?? "",
-            username: defaults.string(forKey: legacyUserKey) ?? "comagic",
+            username: defaults.string(forKey: legacyUserKey) ?? Credentials.username,
             password: Keychain.read(legacyPasswordKey) ?? "",
             directory: defaults.string(forKey: legacyDirKey) ?? ""
         )

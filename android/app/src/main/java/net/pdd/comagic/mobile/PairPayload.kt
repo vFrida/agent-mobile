@@ -28,8 +28,9 @@ data class PairPayload(
 
             return PairPayload(
                 baseUrl = url.trimEnd('/'),
-                username = (params["user"] ?: params["username"] ?: "comagic").ifBlank { "comagic" },
-                password = params["pass"] ?: params["password"] ?: "",
+                username = (params["user"] ?: params["username"] ?: Credentials.username)
+                    .ifBlank { Credentials.username },
+                password = params["pass"] ?: params["password"] ?: Credentials.password,
                 directory = params["dir"] ?: params["directory"] ?: ""
             )
         }

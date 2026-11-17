@@ -50,7 +50,7 @@ class ComagicClientTest {
         val payload = PairPayload.parse("http://10.0.0.5:4907")
         assertTrue(payload != null)
         assertTrue(payload!!.baseUrl == "http://10.0.0.5:4907")
-        assertTrue(payload.password.isEmpty())
+        assertTrue(payload.password == Credentials.password)
     }
 
     @Test

@@ -21,7 +21,7 @@ comagic-mobile/
 python3 server/comagic_server.py --directory /Users/txc --port 4907
 ```
 
-首次启动会打印地址、用户名 `comagic`、随机密码，并生成配对二维码。详见 [server/README.md](server/README.md)。
+首次启动会打印地址、用户名 `comagic` 和密码，并生成配对二维码。密码默认固定为 `YFl4cVaQ8smozi4I`（可用 `--password` 或 `COMAGIC_MOBILE_PASSWORD` 覆盖）。详见 [server/README.md](server/README.md)。
 
 ### 方式二：直接用 comagic web
 
@@ -76,7 +76,7 @@ iOS 单测会读 `/tmp/comagic_test_env.json`（`{"url":..., "pass":...}`）连�
 
 | 用途 | 接口 |
 | --- | --- |
-| 鉴权 | `Authorization: Basic base64(comagic:<启动时随机密码>)` |
+| 鉴权 | `Authorization: Basic base64(comagic:YFl4cVaQ8smozi4I)` |
 | 会话列表 | `GET /api/session?limit=50&order=desc` |
 | 新建会话 | `POST /api/session` body `{agent, model{id,providerID,variant}, location{directory}}` |
 | 删除会话 | `DELETE /api/session/{id}` |

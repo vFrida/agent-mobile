@@ -443,8 +443,8 @@ enum PairPayload {
 
         return Endpoint(
             baseURL: url,
-            username: value("user", "username") ?? "comagic",
-            password: value("pass", "password") ?? "",
+            username: value("user", "username") ?? Credentials.username,
+            password: value("pass", "password") ?? Credentials.password,
             directory: value("dir", "directory") ?? ""
         )
     }

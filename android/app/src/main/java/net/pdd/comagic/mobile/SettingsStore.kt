@@ -59,7 +59,9 @@ class SettingsStore(context: Context) {
         val migrated = Endpoint(
             id = UUID.randomUUID().toString(),
             baseUrl = baseUrl,
-            username = prefs.getString(KEY_USERNAME, "comagic").orEmpty().ifBlank { "comagic" },
+            username = prefs.getString(KEY_USERNAME, Credentials.username)
+                .orEmpty()
+                .ifBlank { Credentials.username },
             password = prefs.getString(KEY_PASSWORD, "").orEmpty(),
             directory = prefs.getString(KEY_DIRECTORY, "").orEmpty()
         )
