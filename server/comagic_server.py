@@ -909,9 +909,11 @@ def main() -> int:
         qr_script = Path(__file__).resolve().parent.parent / "scripts" / "pair-qr.sh"
         if qr_script.exists():
             try:
-                subprocess.run(["bash", str(qr_script), url, password, directory], check=False)
-            except Exception:
-                pass
+                rc = subprocess.run(["bash", str(qr_script), url, password, directory], check=False).returncode
+                if rc != 0:
+                    print("二维码生成失败，可直接用上方地址/密码手动配对。", file=sys.stderr)
+            except Exception as exc:
+                print(f"二维码生成失败: {exc}", file=sys.stderr)
     print("Ctrl-C 结束服务。")
 
     def shutdown(signum, frame):  # noqa: ARG001

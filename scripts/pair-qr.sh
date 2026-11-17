@@ -42,4 +42,29 @@ PY
 
 echo "payload: $PAYLOAD"
 echo
-swift "$HERE/qr.swift" "$PAYLOAD" L
+
+render() {
+  if command -v swift >/dev/null 2>&1; then
+    swift "$HERE/qr.swift" "$PAYLOAD" L && return 0
+  fi
+
+  if python3 -c "import qrcode" >/dev/null 2>&1; then
+    python3 "$HERE/qr.py" "$PAYLOAD" L && return 0
+  fi
+
+  if command -v qrencode >/dev/null 2>&1; then
+    qrencode -t ANSIUTF8 -l L "$PAYLOAD" && return 0
+  fi
+
+  return 1
+}
+
+if ! render; then
+  cat >&2 <<EOF
+无法在当前环境生成二维码（缺少 swift / python qrcode / qrencode）。
+可执行以下任一命令后重试：
+  pip3 install qrcode
+  # 或  apt-get install qrencode
+也可直接让手机 App 手动填写上面的地址和密码配对。
+EOF
+fi

@@ -16,6 +16,8 @@ python3 server/comagic_server.py --directory /Users/txc --port 4907
 
 首次启动会打印地址、用户名 `comagic` 和密码，并调用 `scripts/pair-qr.sh` 生成配对二维码。手机 App 扫码或手填即可。密码默认固定为 `YFl4cVaQ8smozi4I`。
 
+二维码渲染按顺序尝试 `swift`（macOS）、`python3 -c "import qrcode"`、`qrencode`；Linux 上若都没有，先 `pip3 install qrcode` 即可。
+
 常用参数 / 环境变量：
 
 | 参数 | 环境变量 | 默认 |
