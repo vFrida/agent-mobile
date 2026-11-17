@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -51,16 +50,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveServer(endpoint: Endpoint) {
-        val saved = endpoint.copy(
-            id = endpoint.id.ifBlank { UUID.randomUUID().toString() },
-            baseUrl = endpoint.baseUrl.trim().trimEnd('/'),
-            username = endpoint.username.trim().ifBlank { "comagic" },
-            directory = endpoint.directory.trim()
-        )
-        val servers = _state.value.servers.toMutableList().also { list ->
-            val index = list.indexOfFirst { it.id == saved.id }
-            if (index >= 0) list[index] = saved else list.add(saved)
-        }
+        val (servers, saved) = upsertServer(_state.value.servers, endpoint)
         store.saveServers(servers, saved.id)
         closeSession()
         _state.update {

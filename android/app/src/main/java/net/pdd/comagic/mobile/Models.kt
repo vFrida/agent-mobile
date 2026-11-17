@@ -1,6 +1,7 @@
 package net.pdd.comagic.mobile
 
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 @Serializable
 data class ModelRef(
@@ -156,6 +157,38 @@ data class Endpoint(
                 .removePrefix("http://")
                 .ifBlank { "未命名服务器" }
         }
+}
+
+fun upsertServer(
+    servers: List<Endpoint>,
+    endpoint: Endpoint,
+    generateId: () -> String = { UUID.randomUUID().toString() }
+): Pair<List<Endpoint>, Endpoint> {
+    var saved = endpoint.copy(
+        baseUrl = endpoint.baseUrl.trim().trimEnd('/'),
+        username = endpoint.username.trim().ifBlank { Credentials.username },
+        directory = endpoint.directory.trim()
+    )
+    val result = servers.toMutableList()
+    val byId = result.indexOfFirst { saved.id.isNotBlank() && it.id == saved.id }
+    val byUrl = result.indexOfFirst { it.baseUrl.equals(saved.baseUrl, ignoreCase = true) }
+    when {
+        byId >= 0 -> {
+            result[byId] = saved
+            result.removeAll {
+                it.id != saved.id && it.baseUrl.equals(saved.baseUrl, ignoreCase = true)
+            }
+        }
+        byUrl >= 0 -> {
+            saved = saved.copy(id = result[byUrl].id)
+            result[byUrl] = saved
+        }
+        else -> {
+            saved = saved.copy(id = generateId())
+            result.add(saved)
+        }
+    }
+    return result to saved
 }
 
 data class ChatLine(

@@ -45,8 +45,11 @@ final class EndpointStore {
         var list = servers
         if let index = list.firstIndex(where: { $0.id == saved.id }) {
             list[index] = saved
+            list.removeAll {
+                $0.id != saved.id && $0.baseURL.normalizedURL == saved.baseURL.normalizedURL
+            }
         } else if let index = list.firstIndex(where: { existing in
-            existing.baseURL == saved.baseURL && existing.username == saved.username
+            existing.baseURL.normalizedURL == saved.baseURL.normalizedURL
         }) {
             saved.id = list[index].id
             list[index] = saved
@@ -93,6 +96,14 @@ final class EndpointStore {
         defaults.removeObject(forKey: legacyBaseKey)
         defaults.removeObject(forKey: legacyUserKey)
         defaults.removeObject(forKey: legacyDirKey)
+    }
+}
+
+extension String {
+    var normalizedURL: String {
+        var value = trimmingCharacters(in: .whitespaces).lowercased()
+        while value.hasSuffix("/") { value.removeLast() }
+        return value
     }
 }
 
