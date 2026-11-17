@@ -5,6 +5,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+val gitCommitCount: Int = providers.exec {
+    commandLine("git", "rev-list", "--count", "HEAD")
+    workingDir = rootProject.projectDir
+}.standardOutput.asText.get().trim().toIntOrNull() ?: 1
+
 android {
     namespace = "net.pdd.comagic.mobile"
     compileSdk = 35
@@ -13,8 +18,18 @@ android {
         applicationId = "net.pdd.comagic.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = gitCommitCount
+        versionName = "1.0.$gitCommitCount"
+    }
+
+    buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+        release {
+            // 与 mosu 相同：release 复用本机 debug 签名证书
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     buildFeatures {

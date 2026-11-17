@@ -74,6 +74,8 @@ cd android
 
 要求：JDK 17+、Android SDK（`local.properties` 会自动生成）。
 
+debug/release 共用与 mosu 相同的本机 debug 签名证书；`versionCode` 取 git 提交数，`versionName` 为 `1.0.<提交数>`。
+
 ## iOS
 
 ```bash

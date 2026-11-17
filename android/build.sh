@@ -20,7 +20,7 @@ usage() {
 用法: ./build.sh [选项] [debug|release|install|run|test|clean]
 
   debug     编 debug APK（默认）
-  release   编 release APK（需自备签名配置）
+  release   编 release APK（与 debug 共用同一签名证书）
   test      跑 JVM 单测（COMAGIC_TEST_URL / COMAGIC_TEST_PASSWORD 指向真实服务）
   clean     清理构建产物
   install   编 debug 并安装到设备
