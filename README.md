@@ -35,6 +35,8 @@ python3 server/comagic_server.py --directory /Users/txc --port 4907
 
 App 里点「扫码配对」扫这个二维码即可；也可以手填地址、用户名 `comagic`、密码。
 
+新建会话时会先进入目录浏览，选择目标机器上的工作目录，再创建会话。
+
 `comagic web` 默认会自动打开浏览器，`pair.sh` 用一个临时的 `open` 占位脚本把它屏蔽掉了。如果想自己起服务也不弹浏览器：
 
 ```bash
