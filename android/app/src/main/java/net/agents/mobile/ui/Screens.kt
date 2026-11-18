@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile.ui
+package net.agents.mobile.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -110,21 +110,21 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import net.pdd.comagic.mobile.ChatLine
-import net.pdd.comagic.mobile.Credentials
-import net.pdd.comagic.mobile.DirectoryPickerState
-import net.pdd.comagic.mobile.R
-import net.pdd.comagic.mobile.Endpoint
-import net.pdd.comagic.mobile.ModelRef
-import net.pdd.comagic.mobile.RegistryDefaults
-import net.pdd.comagic.mobile.RegistryServer
-import net.pdd.comagic.mobile.SessionRef
-import net.pdd.comagic.mobile.ServerStatus
-import net.pdd.comagic.mobile.StreamState
-import net.pdd.comagic.mobile.UiState
+import net.agents.mobile.ChatLine
+import net.agents.mobile.Credentials
+import net.agents.mobile.DirectoryPickerState
+import net.agents.mobile.R
+import net.agents.mobile.Endpoint
+import net.agents.mobile.ModelRef
+import net.agents.mobile.RegistryDefaults
+import net.agents.mobile.RegistryServer
+import net.agents.mobile.SessionRef
+import net.agents.mobile.ServerStatus
+import net.agents.mobile.StreamState
+import net.agents.mobile.UiState
 import kotlin.math.roundToInt
-import net.pdd.comagic.mobile.VoiceInput
-import net.pdd.comagic.mobile.decodeImageSource
+import net.agents.mobile.VoiceInput
+import net.agents.mobile.decodeImageSource
 
 private val ChatBackground = Color(0xFFEDEDED)
 private val UserBubbleColor = Color(0xFF95EC69)
@@ -311,7 +311,7 @@ fun LoginScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Spacer(modifier = Modifier.height(40.dp))
-            Text("Comagic", style = MaterialTheme.typography.headlineMedium)
+            Text("Agents", style = MaterialTheme.typography.headlineMedium)
             Text(
                 "登录注册中心，自动发现 agents",
                 style = MaterialTheme.typography.bodySmall,

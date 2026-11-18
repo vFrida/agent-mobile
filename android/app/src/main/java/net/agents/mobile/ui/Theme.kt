@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile.ui
+package net.agents.mobile.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme

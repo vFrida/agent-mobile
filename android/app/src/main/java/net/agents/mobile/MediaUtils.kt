@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile
+package net.agents.mobile
 
 import android.content.Context
 import android.graphics.Bitmap

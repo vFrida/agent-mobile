@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile
+package net.agents.mobile
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement

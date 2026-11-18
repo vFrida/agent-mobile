@@ -134,8 +134,8 @@ if [[ "$INSTALL" == "1" ]]; then
     adb_cmd reverse "tcp:$PORT" "tcp:$PORT"
   fi
   if [[ "$LAUNCH" == "1" ]]; then
-    echo "==> 启动 net.pdd.comagic.mobile/.MainActivity"
-    adb_cmd shell am start -n net.pdd.comagic.mobile/.MainActivity
+    echo "==> 启动 net.comagic.mobile/.MainActivity"
+    adb_cmd shell am start -n net.comagic.mobile/.MainActivity
   fi
 fi
 

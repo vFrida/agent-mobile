@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile
+package net.agents.mobile
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

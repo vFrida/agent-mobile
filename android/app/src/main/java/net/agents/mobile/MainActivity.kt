@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile
+package net.agents.mobile
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -26,13 +26,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import net.pdd.comagic.mobile.ui.ChatScreen
-import net.pdd.comagic.mobile.ui.DirectoryPickerScreen
-import net.pdd.comagic.mobile.ui.ComagicTheme
-import net.pdd.comagic.mobile.ui.ServersScreen
-import net.pdd.comagic.mobile.ui.LoginScreen
-import net.pdd.comagic.mobile.ui.SessionListScreen
-import net.pdd.comagic.mobile.ui.SettingsScreen
+import net.agents.mobile.ui.ChatScreen
+import net.agents.mobile.ui.DirectoryPickerScreen
+import net.agents.mobile.ui.ComagicTheme
+import net.agents.mobile.ui.ServersScreen
+import net.agents.mobile.ui.LoginScreen
+import net.agents.mobile.ui.SessionListScreen
+import net.agents.mobile.ui.SettingsScreen
 
 class MainActivity : ComponentActivity() {
 

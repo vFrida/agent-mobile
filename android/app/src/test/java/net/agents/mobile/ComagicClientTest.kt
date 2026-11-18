@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile
+package net.agents.mobile
 
 import org.junit.Assert.assertTrue
 import org.junit.Test

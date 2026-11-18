@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile
+package net.agents.mobile
 
 import kotlinx.serialization.json.Json
 import okhttp3.Credentials as OkHttpCredentials

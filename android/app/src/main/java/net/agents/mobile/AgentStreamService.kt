@@ -1,4 +1,4 @@
-package net.pdd.comagic.mobile
+package net.agents.mobile
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -46,7 +46,7 @@ class AgentStreamService : Service() {
             NotificationChannel(CHANNEL_ID, "Agent 连接", NotificationManager.IMPORTANCE_LOW)
         )
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Comagic 正在接收 agent 输出")
+            .setContentTitle("Agents 正在接收 agent 输出")
             .setSmallIcon(R.drawable.ic_stat_agent)
             .setOngoing(true)
             .build()

@@ -11,11 +11,11 @@ val gitCommitCount: Int = providers.exec {
 }.standardOutput.asText.get().trim().toIntOrNull() ?: 1
 
 android {
-    namespace = "net.pdd.comagic.mobile"
+    namespace = "net.agents.mobile"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "net.pdd.comagic.mobile"
+        applicationId = "net.agents.mobile"
         minSdk = 26
         targetSdk = 35
         versionCode = gitCommitCount
