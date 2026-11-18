@@ -154,7 +154,17 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onDelete = viewModel::deleteServer,
             onClose = { serversOpen = false },
             batteryOptimized = !ignoringBatteryOptimizations,
-            onRequestIgnoreBattery = { context.requestIgnoreBatteryOptimization() }
+            onRequestIgnoreBattery = { context.requestIgnoreBatteryOptimization() },
+            registryUrl = state.registryUrl,
+            registryServers = state.registryServers,
+            registryLoading = state.registryLoading,
+            registryError = state.registryError,
+            onRegistryUrlChange = viewModel::saveRegistryUrl,
+            onRefreshRegistry = viewModel::refreshRegistry,
+            onAddRegistryServer = { server ->
+                viewModel.addRegistryServer(server)
+                serversOpen = false
+            }
         )
 
         else -> SessionListScreen(

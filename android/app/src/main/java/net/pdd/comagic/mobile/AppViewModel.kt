@@ -26,7 +26,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         const val PAGE_SIZE = 20
     }
     private val _state = MutableStateFlow(
-        UiState(endpoint = store.load(), servers = store.loadServers())
+        UiState(
+            endpoint = store.load(),
+            servers = store.loadServers(),
+            registryUrl = store.loadRegistryUrl()
+        )
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
 
@@ -203,6 +207,47 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { withContext(Dispatchers.IO) { client.switchModel(sessionID, model) } }
                 .onFailure { error -> _state.update { it.copy(error = error.message) } }
         }
+    }
+
+    fun saveRegistryUrl(url: String) {
+        store.saveRegistryUrl(url)
+        _state.update { it.copy(registryUrl = url.trim(), registryError = null) }
+    }
+
+    fun refreshRegistry() {
+        val url = _state.value.registryUrl.trim()
+        if (url.isBlank()) {
+            _state.update { it.copy(registryError = "请先填写注册中心地址") }
+            return
+        }
+        _state.update { it.copy(registryLoading = true, registryError = null) }
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { RegistryClient(url).listServers() } }
+                .onSuccess { servers ->
+                    _state.update {
+                        it.copy(registryServers = servers, registryLoading = false, registryError = null)
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(registryLoading = false, registryError = error.message ?: "注册中心请求失败")
+                    }
+                }
+        }
+    }
+
+    fun addRegistryServer(server: RegistryServer) {
+        val registryUrl = _state.value.registryUrl.trim().trimEnd('/')
+        if (registryUrl.isBlank() || server.id.isBlank()) return
+        saveServer(
+            Endpoint(
+                name = server.name.ifBlank { server.id },
+                baseUrl = "$registryUrl/s/${server.id}",
+                username = Credentials.username,
+                password = Credentials.password,
+                directory = server.directory
+            )
+        )
     }
 
     fun openSession(session: SessionRef) {

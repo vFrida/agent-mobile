@@ -104,6 +104,7 @@ import net.pdd.comagic.mobile.R
 import net.pdd.comagic.mobile.Endpoint
 import net.pdd.comagic.mobile.ModelRef
 import net.pdd.comagic.mobile.PairPayload
+import net.pdd.comagic.mobile.RegistryServer
 import net.pdd.comagic.mobile.SessionRef
 import net.pdd.comagic.mobile.ServerStatus
 import net.pdd.comagic.mobile.StreamState
@@ -289,7 +290,14 @@ fun ServersScreen(
     onDelete: (Endpoint) -> Unit,
     onClose: () -> Unit,
     batteryOptimized: Boolean,
-    onRequestIgnoreBattery: () -> Unit
+    onRequestIgnoreBattery: () -> Unit,
+    registryUrl: String,
+    registryServers: List<RegistryServer>,
+    registryLoading: Boolean,
+    registryError: String?,
+    onRegistryUrlChange: (String) -> Unit,
+    onRefreshRegistry: () -> Unit,
+    onAddRegistryServer: (RegistryServer) -> Unit
 ) {
     var pendingDelete by remember { mutableStateOf<Endpoint?>(null) }
 
@@ -333,6 +341,16 @@ fun ServersScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            RegistryPanel(
+                registryUrl = registryUrl,
+                servers = registryServers,
+                loading = registryLoading,
+                error = registryError,
+                onChange = onRegistryUrlChange,
+                onRefresh = onRefreshRegistry,
+                onAdd = onAddRegistryServer
+            )
+
             if (servers.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -437,6 +455,79 @@ private fun ServerAvailability(status: ServerStatus?) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+private fun RegistryPanel(
+    registryUrl: String,
+    servers: List<RegistryServer>,
+    loading: Boolean,
+    error: String?,
+    onChange: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onAdd: (RegistryServer) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("注册中心", style = MaterialTheme.typography.titleSmall)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = registryUrl,
+                onValueChange = onChange,
+                placeholder = { Text("http://192.168.1.10:4908") },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            Button(onClick = onRefresh, enabled = !loading) {
+                Text(if (loading) "发现中" else "发现")
+            }
+        }
+        error?.let {
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+        }
+        servers.forEach { server ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable { onAdd(server) }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(if (server.online) SendButtonColor else SystemTextColor)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        server.name.ifBlank { server.id },
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        server.directory.ifBlank { server.url },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Text("添加", style = MaterialTheme.typography.labelMedium, color = SendButtonColor)
+            }
+        }
     }
 }
 

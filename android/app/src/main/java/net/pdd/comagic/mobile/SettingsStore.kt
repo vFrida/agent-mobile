@@ -31,6 +31,12 @@ class SettingsStore(context: Context) {
 
     fun loadActiveId(): String = prefs.getString(KEY_ACTIVE, "").orEmpty()
 
+    fun loadRegistryUrl(): String = prefs.getString(KEY_REGISTRY, "").orEmpty()
+
+    fun saveRegistryUrl(url: String) {
+        prefs.edit().putString(KEY_REGISTRY, url.trim()).apply()
+    }
+
     fun load(): Endpoint {
         val servers = loadServers()
         val activeId = loadActiveId()
@@ -78,6 +84,7 @@ class SettingsStore(context: Context) {
     private companion object {
         const val KEY_SERVERS = "servers"
         const val KEY_ACTIVE = "activeServer"
+        const val KEY_REGISTRY = "registryUrl"
 
         const val KEY_BASE_URL = "baseUrl"
         const val KEY_USERNAME = "username"

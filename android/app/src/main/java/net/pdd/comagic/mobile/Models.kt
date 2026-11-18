@@ -116,6 +116,20 @@ data class FsEntry(
 data class FsListResponse(val data: List<FsEntry> = emptyList())
 
 @Serializable
+data class RegistryServer(
+    val id: String = "",
+    val name: String = "",
+    val url: String = "",
+    val directory: String = "",
+    val version: String = "",
+    val lastSeen: Long = 0,
+    val online: Boolean = false
+)
+
+@Serializable
+data class RegistryListResponse(val data: List<RegistryServer> = emptyList())
+
+@Serializable
 data class HealthResponse(
     val healthy: Boolean = false,
     val version: String = ""
@@ -281,5 +295,9 @@ data class UiState(
     val oldestMessageID: String? = null,
     val historyLimit: Int = 20,
     val loadingOlder: Boolean = false,
+    val registryUrl: String = "",
+    val registryServers: List<RegistryServer> = emptyList(),
+    val registryLoading: Boolean = false,
+    val registryError: String? = null,
     val streamState: StreamState = StreamState.IDLE
 )
