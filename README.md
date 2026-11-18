@@ -25,8 +25,10 @@ tail -f ~/Library/Logs/comagic-mobile/server.log
 ```
 
 - 固定账号密码：`comagic` / `YFl4cVaQ8smozi4I`（App 新增服务器时已预填），可用 `COMAGIC_MOBILE_USERNAME` / `COMAGIC_MOBILE_PASSWORD` 覆盖。
+- 注册中心 `com.comagic.mobile-registry`（`scripts/registry.sh`，端口 4908）随登录自启；bridge 启动时注册到它，App 可用 `http://<IP>:4908/s/<server_id>` 统一代理。
 - 服务端口 `4907`，监听 `0.0.0.0`，默认目录 `$HOME`，可用 `COMAGIC_MOBILE_PORT` / `COMAGIC_MOBILE_HOST` / `COMAGIC_MOBILE_DIR` 覆盖。
-- 崩溃会自动重启（`KeepAlive`）；停止：`launchctl bootout gui/$(id -u)/com.comagic.mobile-server`。
+- 崩溃会自动重启（`KeepAlive`）；停止：`launchctl bootout gui/$(id -u)/com.comagic.mobile-server
+launchctl bootout gui/$(id -u)/com.comagic.mobile-registry`。
 - 这是登录后启动；如需开机未登录也启动，需要把 plist 放到 `/Library/LaunchDaemons` 并用 root 加载。
 
 ## 配对

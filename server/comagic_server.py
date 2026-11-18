@@ -10,6 +10,7 @@ Only Python 3 standard library is required.
 from __future__ import annotations
 
 import argparse
+import atexit
 import base64
 import hmac
 import json
@@ -23,7 +24,9 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 import uuid
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -913,6 +916,81 @@ def lan_ip() -> str:
         return "127.0.0.1"
 
 
+def start_registry_reporter(
+    registry_url: str,
+    registry_username: str,
+    registry_password: str,
+    server_url: str,
+    username: str,
+    password: str,
+    directory: str,
+    name: str,
+) -> None:
+    """向注册中心注册自己，并定期心跳；进程退出时注销。"""
+    base = registry_url.rstrip("/")
+    token = base64.b64encode(f"{registry_username}:{registry_password}".encode()).decode()
+    state: dict[str, str | None] = {"id": None}
+
+    def call(method: str, path: str, payload: dict | None = None) -> tuple[int, bytes]:
+        request = urllib.request.Request(
+            base + path,
+            method=method,
+            data=json.dumps(payload).encode("utf-8") if payload is not None else None,
+            headers={
+                "Authorization": f"Basic {token}",
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return response.status, response.read()
+
+    def register() -> None:
+        _, raw = call(
+            "POST",
+            "/api/register",
+            {
+                "name": name,
+                "url": server_url,
+                "username": username,
+                "password": password,
+                "directory": directory,
+                "version": "bridge-0.1",
+            },
+        )
+        state["id"] = json.loads(raw).get("id")
+        log(f"registry: registered as {state['id']} ({server_url})")
+
+    def loop() -> None:
+        while True:
+            try:
+                server_id = state.get("id")
+                if not server_id:
+                    register()
+                else:
+                    try:
+                        call("POST", f"/api/servers/{server_id}/heartbeat")
+                    except urllib.error.HTTPError as error:
+                        if error.code == 404:
+                            state["id"] = None
+                        else:
+                            raise
+            except Exception as error:
+                log(f"registry: {error}")
+            time.sleep(15)
+
+    def deregister() -> None:
+        server_id = state.get("id")
+        if not server_id:
+            return
+        try:
+            call("DELETE", f"/api/servers/{server_id}")
+        except Exception:
+            pass
+
+    atexit.register(deregister)
+    threading.Thread(target=loop, daemon=True).start()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Comagic mobile bridge server")
     parser.add_argument("--host", default=os.environ.get("COMAGIC_MOBILE_HOST", "0.0.0.0"))
@@ -921,6 +999,10 @@ def main() -> int:
     parser.add_argument("--username", default=os.environ.get("COMAGIC_MOBILE_USERNAME") or DEFAULT_USERNAME)
     parser.add_argument("--directory", default=os.environ.get("COMAGIC_MOBILE_DIR", str(Path.cwd())))
     parser.add_argument("--no-qr", action="store_true", help="不打印配对二维码")
+    parser.add_argument("--registry", default=os.environ.get("COMAGIC_REGISTRY"), help="注册中心地址")
+    parser.add_argument("--registry-username", default=os.environ.get("COMAGIC_REGISTRY_USERNAME") or DEFAULT_USERNAME)
+    parser.add_argument("--registry-password", default=os.environ.get("COMAGIC_REGISTRY_PASSWORD") or DEFAULT_PASSWORD)
+    parser.add_argument("--name", default=os.environ.get("COMAGIC_MOBILE_NAME") or socket.gethostname())
     args = parser.parse_args()
 
     if not Path(COMAGIC_BIN).exists() and not shutil.which(COMAGIC_BIN):
@@ -933,6 +1015,18 @@ def main() -> int:
     httpd = make_server(args.host, args.port, password, args.username, directory)
     ip = lan_ip() if args.host in ("0.0.0.0", "::") else args.host
     url = f"http://{ip}:{args.port}"
+
+    if args.registry:
+        start_registry_reporter(
+            registry_url=args.registry,
+            registry_username=args.registry_username,
+            registry_password=args.registry_password,
+            server_url=url,
+            username=args.username,
+            password=password,
+            directory=directory,
+            name=args.name,
+        )
 
     print()
     print("Comagic Mobile bridge 已启动")

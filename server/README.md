@@ -8,6 +8,43 @@ Android / iOS  ──HTTP+SSE──▶  server/comagic_server.py  ──spawn─
                                       └── state.json（手机侧会话 ID ↔ comagic 会话 ID）
 ```
 
+## 注册中心（多台开发机）
+
+`server/registry_server.py` 是一个注册中心 + 反向代理：bridge 启动时向它注册，App 只连它，通过 `/s/<server_id>/...` 转发到对应机器。
+
+```
+bridge（4907）──启动注册/心跳──▶  注册中心（4908）
+App ──HTTP+SSE──▶ 注册中心 /s/<id>/... ──转发──▶ bridge
+```
+
+```bash
+# 1) 起注册中心
+python3 server/registry_server.py --port 4908
+
+# 2) bridge 注册到它
+python3 server/comagic_server.py --port 4907 --registry http://<本机IP>:4908
+
+# 3) 查看已注册的服务器
+curl -u comagic:YFl4cVaQ8smozi4I http://<本机IP>:4908/api/servers
+
+# 4) App 里把服务器地址填成代理地址，账号密码用注册中心的
+#    http://<本机IP>:4908/s/<server_id>
+```
+
+注册中心接口（均需 Basic Auth，默认 `comagic` / `YFl4cVaQ8smozi4I`）：
+
+| 接口 | 说明 |
+| --- | --- |
+| `POST /api/register` | bridge 注册 `{name,url,username,password,directory,version}` |
+| `POST /api/servers/{id}/heartbeat` | 心跳，超过 60s 标记 offline |
+| `DELETE /api/servers/{id}` | 注销（bridge 退出时自动调用） |
+| `GET /api/servers` | 已注册服务器列表（含 online 状态） |
+| `GET /global/health` | 健康检查 |
+
+bridge 相关参数：`--registry`（`COMAGIC_REGISTRY`）、`--registry-username`、`--registry-password`、`--name`。
+
+> 注册中心会保存各 bridge 的 Basic Auth 凭据用于代理，只应在可信局域网运行。
+
 ## 启动
 
 ```bash
