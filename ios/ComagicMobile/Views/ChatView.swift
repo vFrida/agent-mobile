@@ -219,7 +219,13 @@ struct ChatView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("返回") { model.close() }
+                Button {
+                    model.close()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .accessibilityLabel("返回")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 if model.busy {

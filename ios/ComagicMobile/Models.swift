@@ -198,6 +198,15 @@ struct Endpoint: Codable, Identifiable, Hashable {
 
     var ready: Bool { !baseURL.isEmpty && !password.isEmpty }
 
+    var agentID: String {
+        var url = baseURL
+        while url.hasSuffix("/") { url.removeLast() }
+        guard url.contains("/s/"), let id = url.components(separatedBy: "/s/").last, !id.isEmpty else {
+            return id
+        }
+        return id
+    }
+
     var label: String {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard trimmed.isEmpty else { return trimmed }

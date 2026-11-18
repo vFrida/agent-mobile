@@ -2,150 +2,114 @@ import SwiftUI
 
 struct ServersView: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.dismiss) private var dismiss
 
-    @State private var editor: EditorTarget?
+    var onClose: () -> Void
+
     @State private var pendingDelete: Endpoint?
 
-    private struct EditorTarget: Identifiable {
-        let id: String
-        let server: Endpoint
-    }
-
     var body: some View {
-        NavigationStack {
-            List {
-                Section("注册中心") {
-                    TextField(RegistryDefaults.url, text: Binding(
-                        get: { model.registryURL },
-                        set: { model.saveRegistryURL($0) }
-                    ))
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+        List {
+            Section {
+                TextField("注册中心地址", text: Binding(
+                    get: { model.registryURL },
+                    set: { model.saveRegistryURL($0) }
+                ))
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
 
-                    Button {
-                        Task { await model.refreshRegistry() }
-                    } label: {
-                        HStack {
-                            Text("发现服务器")
-                            if model.registryLoading { ProgressView() }
-                        }
-                    }
-                    .disabled(model.registryLoading)
-
-                    if let error = model.registryError {
-                        Text(error).font(.caption).foregroundStyle(Palette.critical)
-                    }
+                if let error = model.registryError {
+                    Text(error).font(.caption).foregroundStyle(Palette.critical)
                 }
+            }
 
-                if !model.registryServers.isEmpty {
-                    Section("发现的服务器") {
-                        ForEach(model.registryServers) { server in
-                            Button {
-                                Task {
-                                    await model.addRegistryServer(server)
-                                    dismiss()
-                                }
-                            } label: {
-                                HStack(spacing: 10) {
-                                    Circle()
-                                        .fill(server.online == true ? Palette.sendGreen : Palette.systemText)
-                                        .frame(width: 8, height: 8)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(server.name ?? server.id)
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundStyle(Palette.textStrong)
-                                        Text(server.directory ?? server.url ?? "")
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(Palette.textWeak)
-                                            .lineLimit(1)
-                                    }
-                                    Spacer(minLength: 0)
-                                    Text("添加")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundStyle(Palette.accentBlue)
-                                }
-                            }
-                        }
-                    }
-                }
+            if !model.registryServers.isEmpty {
+                Text("已发现 \(model.registryServers.count) 个 agents")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.textWeak)
+            }
 
-                if model.servers.isEmpty {
-                    Section {
-                        Text("还没有服务器")
-                            .foregroundStyle(Palette.textWeak)
-                    }
-                }
-
-                ForEach(model.servers) { server in
-                    Button {
-                        Task {
-                            await model.selectServer(server)
-                            dismiss()
-                        }
-                    } label: {
-                        row(server)
-                    }
-                    .listRowBackground(Palette.background)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            pendingDelete = server
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                        Button {
-                            editor = EditorTarget(id: server.id, server: server)
-                        } label: {
-                            Label("编辑", systemImage: "pencil")
-                        }
-                        .tint(Palette.textBase)
-                    }
-                }
-
+            if model.servers.isEmpty {
                 Section {
+                    Text("还没有 agents")
+                        .foregroundStyle(Palette.textWeak)
+                }
+            }
+
+            ForEach(model.servers) { server in
+                Button {
+                    Task {
+                        await model.selectServer(server)
+                        onClose()
+                    }
+                } label: {
+                    row(server)
+                }
+                .listRowBackground(Palette.background)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button {
-                        editor = EditorTarget(id: "new", server: Endpoint())
+                        // 收起左滑操作
                     } label: {
-                        Label("添加服务器", systemImage: "plus")
+                        Label("取消", systemImage: "xmark")
+                    }
+                    .tint(Palette.textBase)
+
+                    Button(role: .destructive) {
+                        pendingDelete = server
+                    } label: {
+                        Label("删除", systemImage: "trash")
                     }
                 }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Palette.background)
-            .navigationTitle("服务器")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
+
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Palette.background)
+        .navigationTitle("agents")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    Task {
+                        await model.refreshRegistry()
+                        await model.refreshServerStatuses()
+                    }
+                } label: {
+                    if model.registryLoading {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
                 }
+                .disabled(model.registryLoading)
+                .accessibilityLabel("刷新")
             }
-            .task { await model.refreshServerStatuses() }
-            .sheet(item: $editor) { target in
-                NavigationStack {
-                    PairingView(editing: .constant(true), initial: target.server, onDone: {
-                        editor = nil
-                    })
-                }
-            }
-            .confirmationDialog(
-                "删除服务器",
-                isPresented: Binding(
-                    get: { pendingDelete != nil },
-                    set: { if !$0 { pendingDelete = nil } }
-                ),
-                titleVisibility: .visible,
-                presenting: pendingDelete
-            ) { server in
-                Button("删除", role: .destructive) {
-                    pendingDelete = nil
-                    Task { await model.deleteServer(server) }
-                }
-                Button("取消", role: .cancel) { pendingDelete = nil }
-            } message: { server in
-                Text("确定删除「\(server.label)」吗？会话仍保留在对应机器上。")
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("会话") { onClose() }
             }
         }
+        .task {
+            await model.refreshRegistry()
+            await model.refreshServerStatuses()
+        }
+        .confirmationDialog(
+            "删除 agents",
+            isPresented: Binding(
+                get: { pendingDelete != nil },
+                set: { if !$0 { pendingDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingDelete
+        ) { server in
+            Button("删除", role: .destructive) {
+                pendingDelete = nil
+                Task { await model.deleteServer(server) }
+            }
+            Button("取消", role: .cancel) { pendingDelete = nil }
+        } message: { server in
+            Text("确定删除「\(server.label)」吗？会话仍保留在对应机器上。")
+        }
+    
     }
 
     private func statusRow(_ status: ServerAvailability?) -> some View {
@@ -170,13 +134,14 @@ struct ServersView: View {
 
     private func row(_ server: Endpoint) -> some View {
         let isActive = server.id == model.endpoint.id
+        let accent = Palette.sessionPalette[abs(server.id.hashValue) % Palette.sessionPalette.count]
         return HStack(alignment: .top, spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Palette.surfaceWeak)
-                Image(systemName: "server.rack")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Palette.textStrong)
+                    .fill(accent)
+                Text(String(server.label.prefix(1)).uppercased())
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
             }
             .frame(width: 38, height: 38)
 
@@ -191,16 +156,12 @@ struct ServersView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Palette.surfaceWeak, in: Capsule())
-                            .foregroundStyle(Palette.textWeak)
+                            .background(Palette.accentBlue.opacity(0.12), in: Capsule())
+                            .foregroundStyle(Palette.accentBlue)
                     }
                 }
-                Text(server.baseURL.isEmpty ? "未填写地址" : server.baseURL)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.textWeak)
-                    .lineLimit(1)
-                Text(server.directory.isEmpty ? "未设置工作目录" : server.directory)
-                    .font(.system(size: 11))
+                Text(server.agentID)
+                    .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(Palette.textWeak)
                     .lineLimit(1)
                 statusRow(model.serverStatus[server.id])

@@ -13,7 +13,7 @@ struct ComagicApp: App {
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var editing = false
+    @State private var showingAgents = true
 
     var body: some View {
         NavigationStack {
@@ -39,10 +39,12 @@ struct RootView: View {
             ChatView()
         } else if model.directoryPicker != nil {
             DirectoryPickerView()
-        } else if !model.endpoint.ready || editing {
-            PairingView(editing: $editing)
+        } else if !model.endpoint.ready {
+            RegistryConnectView()
+        } else if showingAgents {
+            ServersView(onClose: { showingAgents = false })
         } else {
-            SessionListView(editing: $editing)
+            SessionListView(onAgents: { showingAgents = true })
         }
     }
 }

@@ -50,19 +50,27 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func autoConnectFromRegistry() async {
-        guard !servers.contains(where: { $0.ready }) else { return }
+    func connectRegistry() async {
+        await autoConnectFromRegistry(force: true)
+    }
+
+    private func autoConnectFromRegistry(force: Bool = false) async {
+        if !force && servers.contains(where: { $0.ready }) { return }
         let url = registryURL.trimmingCharacters(in: .whitespaces)
         guard !url.isEmpty else { return }
+        registryLoading = true
+        registryError = nil
+        defer { registryLoading = false }
         do {
             let found = try await RegistryClient(baseURL: url).listServers()
             registryServers = found
-            registryError = nil
             guard let server = found.first(where: { $0.online == true }) ?? found.first else {
                 registryError = "注册中心暂无可用服务器"
                 return
             }
-            await addRegistryServer(server)
+            let ordered = [server] + found.filter { $0.id != server.id }
+            await addRegistryServers(ordered, activateFirst: !endpoint.ready)
+            await refreshServerStatuses()
         } catch {
             registryError = error.localizedDescription
         }
@@ -83,31 +91,45 @@ final class AppModel: ObservableObject {
         registryLoading = true
         registryError = nil
         do {
-            registryServers = try await RegistryClient(baseURL: url).listServers()
+            let found = try await RegistryClient(baseURL: url).listServers()
+            registryServers = found
+            let added = await addRegistryServers(found, activateFirst: !endpoint.ready)
+            if added > 0 { await refreshServerStatuses() }
         } catch {
             registryError = error.localizedDescription
         }
         registryLoading = false
     }
 
-    func addRegistryServer(_ server: RegistryServer) async {
-        let url = registryURL.trimmingCharacters(in: .whitespaces)
-        var base = url
+    @discardableResult
+    func addRegistryServers(_ found: [RegistryServer], activateFirst: Bool) async -> Int {
+        var base = registryURL.trimmingCharacters(in: .whitespaces)
         while base.hasSuffix("/") { base.removeLast() }
-        guard !base.isEmpty, !server.id.isEmpty else { return }
-        var endpoint = Endpoint(
-            name: server.name ?? server.id,
-            baseURL: "\(base)/s/\(server.id)",
-            username: Credentials.username,
-            password: Credentials.password,
-            directory: server.directory ?? ""
-        )
-        endpoint = EndpointStore.shared.upsert(endpoint)
-        EndpointStore.shared.activate(endpoint)
-        self.endpoint = endpoint
-        servers = EndpointStore.shared.servers
-        close()
-        await refresh()
+        guard !base.isEmpty else { return 0 }
+        var added = 0
+        for server in found where !server.id.isEmpty {
+            let address = "\(base)/s/\(server.id)"
+            if servers.contains(where: { $0.baseURL.normalizedURL == address.normalizedURL }) { continue }
+            var endpoint = Endpoint(
+                name: server.name ?? server.id,
+                baseURL: address,
+                username: Credentials.username,
+                password: Credentials.password,
+                directory: server.directory ?? ""
+            )
+            if activateFirst && added == 0 {
+                endpoint = EndpointStore.shared.upsert(endpoint)
+                EndpointStore.shared.activate(endpoint)
+                self.endpoint = endpoint
+                close()
+                await refresh()
+            } else {
+                _ = EndpointStore.shared.upsert(endpoint)
+            }
+            servers = EndpointStore.shared.servers
+            added += 1
+        }
+        return added
     }
 
     private var client: ComagicClient? {

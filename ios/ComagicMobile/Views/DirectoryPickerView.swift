@@ -20,7 +20,13 @@ struct DirectoryPickerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("取消") { model.closeDirectoryPicker() }
+                Button {
+                    model.closeDirectoryPicker()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .accessibilityLabel("返回")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

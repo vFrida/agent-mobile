@@ -2,10 +2,11 @@ import SwiftUI
 
 struct SessionListView: View {
     @EnvironmentObject private var model: AppModel
-    @Binding var editing: Bool
+
+    var onAgents: () -> Void
+
     @State private var pendingDelete: SessionRef?
     @State private var query = ""
-    @State private var showingServers = false
 
     private var filtered: [SessionRef] {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -102,7 +103,7 @@ struct SessionListView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    showingServers = true
+                    onAgents()
                 } label: {
                     Image(systemName: "server.rack")
                 }
@@ -117,10 +118,6 @@ struct SessionListView: View {
             }
         }
         .refreshable { await model.refresh() }
-        .sheet(isPresented: $showingServers) {
-            ServersView()
-                .environmentObject(model)
-        }
     }
 
     private func row(_ session: SessionRef) -> some View {

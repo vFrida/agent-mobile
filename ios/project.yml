@@ -18,7 +18,6 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        NSCameraUsageDescription: 扫描终端里的配对二维码
         NSMicrophoneUsageDescription: 语音输入消息
         NSSpeechRecognitionUsageDescription: 将语音转换成文字
         NSPhotoLibraryUsageDescription: 选择图片发送给 agent
