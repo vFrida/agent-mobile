@@ -21,6 +21,16 @@ final class EndpointStore {
     private let registryListKey = "comagic.registryURLs"
     private let registryAccountKey = "comagic.registryAccount"
 
+    var hiddenAgentIDs: Set<String> {
+        get { Set(defaults.stringArray(forKey: "comagic.hiddenAgents") ?? []) }
+        set { defaults.set(Array(newValue), forKey: "comagic.hiddenAgents") }
+    }
+
+    var showHiddenDirs: Bool {
+        get { defaults.bool(forKey: "comagic.showHiddenDirs") }
+        set { defaults.set(newValue, forKey: "comagic.showHiddenDirs") }
+    }
+
     var registryAccount: RegistryAccount? {
         get {
             guard let raw = Keychain.read(registryAccountKey),
@@ -111,6 +121,10 @@ final class EndpointStore {
 
     func activate(_ endpoint: Endpoint) {
         defaults.set(endpoint.id, forKey: activeKey)
+    }
+
+    func replaceAll(_ list: [Endpoint], activeID: String) {
+        persist(list, activeID: activeID)
     }
 
     func clearServers() {

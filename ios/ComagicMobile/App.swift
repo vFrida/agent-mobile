@@ -14,6 +14,7 @@ struct ComagicApp: App {
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
     @State private var showingAgents = true
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -41,8 +42,14 @@ struct RootView: View {
             ChatView()
         } else if model.directoryPicker != nil {
             DirectoryPickerView()
+        } else if showingSettings {
+            SettingsView(onClose: { showingSettings = false })
         } else if showingAgents {
-            ServersView(onClose: { showingAgents = false })
+            ServersView(
+                onClose: { showingAgents = false },
+                onOpenSettings: { showingSettings = true },
+                onLogout: { model.logout() }
+            )
         } else {
             SessionListView(onAgents: { showingAgents = true })
         }

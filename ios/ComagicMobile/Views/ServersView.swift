@@ -4,6 +4,8 @@ struct ServersView: View {
     @EnvironmentObject private var model: AppModel
 
     var onClose: () -> Void
+    var onOpenSettings: () -> Void
+    var onLogout: () -> Void
 
     @State private var pendingDelete: Endpoint?
 
@@ -56,7 +58,15 @@ struct ServersView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    model.logout()
+                    onOpenSettings()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("设置")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    onLogout()
                 } label: {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
                 }
@@ -103,7 +113,7 @@ struct ServersView: View {
     
     }
 
-    private func statusRow(_ status: ServerAvailability?) -> some View {
+    private func statusRow(_ status: ServerAvailability?, type: String?, fallbackVersion: String?) -> some View {
         let resolved = status ?? .checking
         let color: Color = {
             switch resolved {
@@ -116,11 +126,19 @@ struct ServersView: View {
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)
-            Text(resolved.label)
+            Text("\((type?.isEmpty == false ? type! : "comagic")) · \(statusLabel(resolved, fallbackVersion: fallbackVersion))")
                 .font(.system(size: 11))
                 .foregroundStyle(color)
                 .lineLimit(1)
         }
+    }
+
+    private func statusLabel(_ status: ServerAvailability, fallbackVersion: String?) -> String {
+        if case .online = status, case .online(let version) = status, version.isEmpty,
+           let fallback = fallbackVersion, !fallback.isEmpty {
+            return "服务可用 · \(fallback)"
+        }
+        return status.label
     }
 
     private func row(_ server: Endpoint) -> some View {
@@ -155,7 +173,7 @@ struct ServersView: View {
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(Palette.textWeak)
                     .lineLimit(1)
-                statusRow(model.serverStatus[server.id])
+                statusRow(model.serverStatus[server.id], type: server.agentType, fallbackVersion: server.agentVersion)
             }
             Spacer(minLength: 0)
             if isActive {

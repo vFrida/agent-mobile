@@ -327,7 +327,7 @@ struct RegistryClient {
     }
 
     func listServers() async throws -> [RegistryServer] {
-        guard var components = URLComponents(string: base + "/api/servers") else {
+        guard var components = URLComponents(string: base + "/api/agents") else {
             throw ClientError.badResponse
         }
         components.queryItems = []

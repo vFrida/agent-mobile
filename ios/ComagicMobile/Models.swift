@@ -145,6 +145,7 @@ struct MessageDto: Codable {
 struct RegistryServer: Codable, Identifiable, Hashable {
     var id: String
     var name: String?
+    var type: String?
     var url: String?
     var directory: String?
     var version: String?
@@ -197,6 +198,8 @@ struct RegistryAccount: Codable, Equatable {
 struct Endpoint: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var name: String = ""
+    var agentType: String?
+    var agentVersion: String?
     var baseURL: String = ""
     var username: String = Credentials.username
     var password: String = Credentials.password

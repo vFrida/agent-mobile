@@ -260,6 +260,11 @@ struct DirectoryPickerView: View {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return picker.entries
             .filter { ($0.type ?? "directory") == "directory" }
+            .filter { entry in
+                guard !model.showHiddenDirs else { return true }
+                let name = entry.path.split(separator: "/").last.map(String.init) ?? entry.path
+                return !name.hasPrefix(".")
+            }
             .filter { keyword.isEmpty || $0.path.localizedCaseInsensitiveContains(keyword) }
             .sorted { $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending }
     }

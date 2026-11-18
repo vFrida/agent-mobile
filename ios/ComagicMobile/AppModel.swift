@@ -23,6 +23,8 @@ final class AppModel: ObservableObject {
     @Published var historyLimit = 20
     @Published var loadingOlder = false
     @Published var account: RegistryAccount?
+    @Published var showHiddenDirs: Bool
+    @Published var hiddenAgentIDs: Set<String> = []
     @Published var loginLoading = false
     @Published var loginError: String?
     @Published var registryURL: String
@@ -51,6 +53,8 @@ final class AppModel: ObservableObject {
         registryURL = EndpointStore.shared.registryURL
         registryURLs = EndpointStore.shared.registryURLs
         account = EndpointStore.shared.registryAccount
+        showHiddenDirs = EndpointStore.shared.showHiddenDirs
+        hiddenAgentIDs = EndpointStore.shared.hiddenAgentIDs
         if account != nil && !servers.contains(where: { $0.ready }) {
             Task { await autoConnectFromRegistry() }
         }
@@ -68,7 +72,7 @@ final class AppModel: ObservableObject {
         registryError = nil
         defer { registryLoading = false }
         do {
-            let found = try await registryClient.listServers()
+            let found = try await registryClient.listServers().filter { $0.online == true && ($0.type == nil || $0.type == "comagic") }
             registryServers = found
             guard let server = found.first(where: { $0.online == true }) ?? found.first else {
                 registryError = "注册中心暂无可用服务器"
@@ -86,6 +90,18 @@ final class AppModel: ObservableObject {
         registryURL = value
         EndpointStore.shared.registryURL = value
         registryError = nil
+    }
+
+    func restoreHiddenAgents() async {
+        hiddenAgentIDs = []
+        EndpointStore.shared.hiddenAgentIDs = []
+        await refreshRegistry()
+        await refreshServerStatuses()
+    }
+
+    func setShowHiddenDirs(_ enabled: Bool) {
+        showHiddenDirs = enabled
+        EndpointStore.shared.showHiddenDirs = enabled
     }
 
     func logout() {
@@ -148,7 +164,9 @@ final class AppModel: ObservableObject {
         loginError = nil
         defer { loginLoading = false }
         do {
-            let found = try await RegistryClient(baseURL: url, username: user, password: pass).listServers()
+            let found = try await RegistryClient(baseURL: url, username: user, password: pass)
+                .listServers()
+                .filter { $0.online == true && ($0.type == nil || $0.type == "comagic") }
             let account = RegistryAccount(baseURL: url, username: user, password: pass)
             EndpointStore.shared.registryAccount = account
             var urls = registryURLs
@@ -234,7 +252,7 @@ final class AppModel: ObservableObject {
         registryLoading = true
         registryError = nil
         do {
-            let found = try await registryClient.listServers()
+            let found = try await registryClient.listServers().filter { $0.online == true && ($0.type == nil || $0.type == "comagic") }
             registryServers = found
             let added = await addRegistryServers(found, activateFirst: !endpoint.ready)
             if added > 0 { await refreshServerStatuses() }
@@ -249,12 +267,16 @@ final class AppModel: ObservableObject {
         var base = registryURL.trimmingCharacters(in: .whitespaces)
         while base.hasSuffix("/") { base.removeLast() }
         guard !base.isEmpty else { return 0 }
+        pruneStaleRegistryServers(found, prefix: "\(base)/s/")
         var added = 0
         for server in found where !server.id.isEmpty {
             let address = "\(base)/s/\(server.id)"
+            if hiddenAgentIDs.contains(server.id) { continue }
             if servers.contains(where: { $0.baseURL.normalizedURL == address.normalizedURL }) { continue }
             var endpoint = Endpoint(
                 name: server.name ?? server.id,
+                agentType: server.type,
+                agentVersion: server.version,
                 baseURL: address,
                 username: Credentials.username,
                 password: Credentials.password,
@@ -285,6 +307,22 @@ final class AppModel: ObservableObject {
         )
     }
 
+    private func pruneStaleRegistryServers(_ found: [RegistryServer], prefix: String) {
+        let alive = Set(found.map { "\(prefix)\($0.id)" })
+        let current = servers
+        let remaining = current.filter { endpoint in
+            var url = endpoint.baseURL
+            while url.hasSuffix("/") { url.removeLast() }
+            return !url.hasPrefix(prefix) || alive.contains(url)
+        }
+        guard remaining.count != current.count else { return }
+        let next = remaining.first(where: { $0.id == endpoint.id }) ?? remaining.first ?? Endpoint()
+        EndpointStore.shared.replaceAll(remaining, activeID: next.id)
+        servers = remaining
+        endpoint = next
+        close()
+    }
+
     private var client: ComagicClient? {
         endpoint.ready ? ComagicClient(endpoint: endpoint) : nil
     }
@@ -311,6 +349,8 @@ final class AppModel: ObservableObject {
     }
 
     func deleteServer(_ server: Endpoint) async {
+        hiddenAgentIDs.insert(server.agentID)
+        EndpointStore.shared.hiddenAgentIDs = hiddenAgentIDs
         let wasActive = endpoint.id == server.id
         EndpointStore.shared.remove(server)
         servers = EndpointStore.shared.servers
