@@ -178,6 +178,13 @@ object RegistryDefaults {
 }
 
 @Serializable
+data class RegistryAccount(
+    val baseUrl: String = RegistryDefaults.url,
+    val username: String = Credentials.username,
+    val password: String = Credentials.password
+)
+
+@Serializable
 data class Endpoint(
     val id: String = "",
     val name: String = "",
@@ -306,7 +313,11 @@ data class UiState(
     val oldestMessageID: String? = null,
     val historyLimit: Int = 20,
     val loadingOlder: Boolean = false,
-    val registryUrl: String = "",
+    val account: RegistryAccount? = null,
+    val loginLoading: Boolean = false,
+    val loginError: String? = null,
+    val registryUrl: String = RegistryDefaults.url,
+    val registryUrls: List<String> = listOf(RegistryDefaults.url),
     val registryServers: List<RegistryServer> = emptyList(),
     val registryLoading: Boolean = false,
     val registryError: String? = null,

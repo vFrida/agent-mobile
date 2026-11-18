@@ -25,17 +25,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         const val CACHE_TTL_MS = 5 * 60 * 1000L
         const val PAGE_SIZE = 20
     }
-    private val _state = MutableStateFlow(
+    private val _state = MutableStateFlow(run {
+        val registryUrls = store.loadRegistryUrls()
         UiState(
+            account = store.loadRegistryAccount(),
             endpoint = store.load(),
             servers = store.loadServers(),
-            registryUrl = store.loadRegistryUrl()
+            registryUrl = store.loadRegistryUrl(registryUrls),
+            registryUrls = registryUrls
         )
-    )
+    })
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
-        viewModelScope.launch { autoConnectFromRegistry() }
+        if (_state.value.account != null) {
+            viewModelScope.launch { autoConnectFromRegistry() }
+        }
         viewModelScope.launch {
             AgentRepository.events.collect { event ->
                 val current = _state.value.sessionID ?: return@collect
@@ -219,8 +224,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val url = _state.value.registryUrl.trim()
         if (url.isBlank()) return
         _state.update { it.copy(registryLoading = true, registryError = null) }
+        val account = _state.value.account
         val found = runCatching {
-            withContext(Dispatchers.IO) { RegistryClient(url).listServers() }
+            withContext(Dispatchers.IO) {
+                RegistryClient(url, account?.username ?: Credentials.username, account?.password ?: Credentials.password)
+                    .listServers()
+            }
         }.getOrElse { error ->
             _state.update {
                 it.copy(registryLoading = false, registryError = error.message ?: "注册中心请求失败")
@@ -238,9 +247,142 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         refreshServerStatuses()
     }
 
-    fun saveRegistryUrl(url: String) {
+    fun logout() {
+        store.clearRegistryAccount()
+        closeSession()
+        store.saveServers(emptyList(), "")
+        _state.update {
+            it.copy(
+                account = null,
+                loginLoading = false,
+                loginError = null,
+                endpoint = Endpoint(),
+                servers = emptyList(),
+                serverStatus = emptyMap(),
+                registryServers = emptyList(),
+                registryError = null,
+                sessions = emptyList(),
+                agents = emptyList(),
+                models = emptyList(),
+                error = null
+            )
+        }
+    }
+
+    fun selectRegistryAddress(url: String) {
+        if (url !in _state.value.registryUrls) return
         store.saveRegistryUrl(url)
-        _state.update { it.copy(registryUrl = url.trim(), registryError = null) }
+        _state.update { it.copy(registryUrl = url, loginError = null) }
+    }
+
+    fun addRegistryAddress(input: String) {
+        val url = normalizeRegistryUrl(input)
+        if (url.isBlank()) return
+        val urls = (_state.value.registryUrls + url).distinct()
+        store.saveRegistryUrls(urls)
+        store.saveRegistryUrl(url)
+        _state.update { it.copy(registryUrls = urls, registryUrl = url, loginError = null) }
+    }
+
+    fun removeRegistryAddress(url: String) {
+        val urls = _state.value.registryUrls.filterNot { it == url }
+        if (urls.isEmpty()) return
+        store.saveRegistryUrls(urls)
+        val active = if (_state.value.registryUrl == url) urls.first() else _state.value.registryUrl
+        store.saveRegistryUrl(active)
+        _state.update { it.copy(registryUrls = urls, registryUrl = active) }
+    }
+
+    fun login(baseUrl: String, username: String, password: String) {
+        val url = normalizeRegistryUrl(baseUrl)
+        if (url.isBlank()) {
+            _state.update { it.copy(loginError = "请填写注册中心地址") }
+            return
+        }
+        val user = username.trim().ifBlank { Credentials.username }
+        val pass = password.ifBlank { Credentials.password }
+        _state.update { it.copy(loginLoading = true, loginError = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { RegistryClient(url, user, pass).listServers() }
+            }.onSuccess { servers ->
+                val account = RegistryAccount(baseUrl = url, username = user, password = pass)
+                store.saveRegistryAccount(account)
+                val urls = (_state.value.registryUrls + url).distinct()
+                store.saveRegistryUrls(urls)
+                store.saveRegistryUrl(url)
+                _state.update {
+                    it.copy(
+                        account = account,
+                        loginLoading = false,
+                        loginError = null,
+                        registryUrl = url,
+                        registryUrls = urls,
+                        registryServers = servers
+                    )
+                }
+                addRegistryServers(servers, activateFirst = !_state.value.endpoint.ready)
+                refreshServerStatuses()
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(loginLoading = false, loginError = error.message ?: "登录失败")
+                }
+            }
+        }
+    }
+
+    private fun normalizeRegistryUrl(input: String): String {
+        var value = input.trim()
+        if (value.isBlank()) return ""
+        if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://$value"
+        val schemeEnd = value.indexOf("://") + 3
+        val host = value.substring(schemeEnd)
+        if (!host.contains(":") && !host.contains("/")) value = "$value:4908"
+        return value.trimEnd('/')
+    }
+
+    fun selectRegistryUrl(url: String) {
+        if (url !in _state.value.registryUrls) return
+        store.saveRegistryUrl(url)
+        _state.update {
+            it.copy(registryUrl = url, registryServers = emptyList(), registryError = null)
+        }
+        refreshAgents()
+    }
+
+    fun addRegistryUrl(url: String) {
+        val trimmed = normalizeRegistryUrl(url)
+        if (trimmed.isBlank()) return
+        val urls = (_state.value.registryUrls + trimmed).distinct()
+        store.saveRegistryUrls(urls)
+        store.saveRegistryUrl(trimmed)
+        _state.update {
+            it.copy(
+                registryUrls = urls,
+                registryUrl = trimmed,
+                registryServers = emptyList(),
+                registryError = null
+            )
+        }
+        refreshAgents()
+    }
+
+    fun removeRegistryUrl(url: String) {
+        val urls = _state.value.registryUrls.filterNot { it == url }
+        if (urls.isEmpty()) return
+        val wasActive = _state.value.registryUrl == url
+        val active = if (wasActive) urls.first() else _state.value.registryUrl
+        store.saveRegistryUrls(urls)
+        store.saveRegistryUrl(active)
+        _state.update {
+            it.copy(
+                registryUrls = urls,
+                registryUrl = active,
+                registryServers = emptyList(),
+                registryError = null
+            )
+        }
+        if (wasActive) refreshAgents()
     }
 
     fun refreshAgents() {
@@ -256,7 +398,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         _state.update { it.copy(registryLoading = true, registryError = null) }
         viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { RegistryClient(url).listServers() } }
+            val account = _state.value.account
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    RegistryClient(url, account?.username ?: Credentials.username, account?.password ?: Credentials.password)
+                        .listServers()
+                }
+            }
                 .onSuccess { servers ->
                     val added = addRegistryServers(servers, activateFirst = !_state.value.endpoint.ready)
                     _state.update {

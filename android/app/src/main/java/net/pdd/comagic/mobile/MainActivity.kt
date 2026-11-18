@@ -1,15 +1,11 @@
 package net.pdd.comagic.mobile
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,8 +29,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import net.pdd.comagic.mobile.ui.ChatScreen
 import net.pdd.comagic.mobile.ui.DirectoryPickerScreen
 import net.pdd.comagic.mobile.ui.ComagicTheme
-import net.pdd.comagic.mobile.ui.RegistryConnectScreen
 import net.pdd.comagic.mobile.ui.ServersScreen
+import net.pdd.comagic.mobile.ui.LoginScreen
 import net.pdd.comagic.mobile.ui.SessionListScreen
 
 class MainActivity : ComponentActivity() {
@@ -57,7 +53,6 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var ignoringBatteryOptimizations by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
@@ -65,7 +60,6 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                ignoringBatteryOptimizations = context.isIgnoringBatteryOptimizations()
                 viewModel.ensureStream()
             }
         }
@@ -102,15 +96,29 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
         if (serversOpen) viewModel.refreshServerStatuses()
     }
 
-    BackHandler(enabled = state.sessionID != null || state.directoryPicker != null || serversOpen) {
+    BackHandler(enabled = state.sessionID != null || state.directoryPicker != null) {
         when {
             state.sessionID != null -> viewModel.closeSession()
             state.directoryPicker != null -> viewModel.closeDirectoryPicker()
-            serversOpen -> serversOpen = false
         }
     }
 
+    BackHandler(enabled = state.sessionID == null && state.directoryPicker == null && !serversOpen) {
+        serversOpen = true
+    }
+
     when {
+        state.account == null -> LoginScreen(
+            registryUrl = state.registryUrl,
+            registryUrls = state.registryUrls,
+            loading = state.loginLoading,
+            error = state.loginError,
+            onSelectAddress = viewModel::selectRegistryAddress,
+            onAddAddress = viewModel::addRegistryAddress,
+            onDeleteAddress = viewModel::removeRegistryAddress,
+            onSubmit = viewModel::login
+        )
+
         state.sessionID != null -> ChatScreen(
             state = state,
             onSend = viewModel::send,
@@ -131,13 +139,6 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onCancel = viewModel::closeDirectoryPicker
         )
 
-        !state.endpoint.ready -> RegistryConnectScreen(
-            registryUrl = state.registryUrl,
-            loading = state.registryLoading,
-            error = state.registryError,
-            onRetry = viewModel::connectRegistry
-        )
-
         serversOpen -> ServersScreen(
             servers = state.servers,
             active = state.endpoint,
@@ -147,15 +148,9 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
                 serversOpen = false
             },
             onDelete = viewModel::deleteServer,
-            onClose = { serversOpen = false },
-            batteryOptimized = !ignoringBatteryOptimizations,
-            onRequestIgnoreBattery = { context.requestIgnoreBatteryOptimization() },
-            registryUrl = state.registryUrl,
-            registryServers = state.registryServers,
             registryLoading = state.registryLoading,
-            registryError = state.registryError,
-            onRegistryUrlChange = viewModel::saveRegistryUrl,
-            onRefresh = viewModel::refreshAgents
+            onRefresh = viewModel::refreshAgents,
+            onLogout = viewModel::logout
         )
 
         else -> SessionListScreen(
@@ -167,17 +162,4 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onServers = { serversOpen = true }
         )
     }
-}
-
-private fun android.content.Context.isIgnoringBatteryOptimizations(): Boolean =
-    getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(packageName) == true
-
-private fun android.content.Context.requestIgnoreBatteryOptimization() {
-    val request = Intent(
-        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-        Uri.parse("package:$packageName")
-    )
-    val fallback = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-    runCatching { startActivity(request) }
-        .recoverCatching { startActivity(fallback) }
 }

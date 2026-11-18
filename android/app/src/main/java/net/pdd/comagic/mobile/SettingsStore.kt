@@ -31,8 +31,39 @@ class SettingsStore(context: Context) {
 
     fun loadActiveId(): String = prefs.getString(KEY_ACTIVE, "").orEmpty()
 
-    fun loadRegistryUrl(): String =
-        prefs.getString(KEY_REGISTRY, "").orEmpty().ifBlank { RegistryDefaults.url }
+    fun loadRegistryAccount(): RegistryAccount? {
+        val raw = prefs.getString(KEY_REGISTRY_ACCOUNT, null)
+        if (raw.isNullOrBlank()) return null
+        return runCatching { json.decodeFromString<RegistryAccount>(raw) }.getOrNull()
+    }
+
+    fun clearRegistryAccount() {
+        prefs.edit().remove(KEY_REGISTRY_ACCOUNT).apply()
+    }
+
+    fun saveRegistryAccount(account: RegistryAccount) {
+        prefs.edit().putString(KEY_REGISTRY_ACCOUNT, json.encodeToString(account)).apply()
+    }
+
+    fun loadRegistryUrls(): List<String> {
+        val raw = prefs.getString(KEY_REGISTRY_LIST, null)
+        val stored = if (raw.isNullOrBlank()) {
+            emptyList()
+        } else {
+            runCatching { json.decodeFromString<List<String>>(raw) }.getOrDefault(emptyList())
+        }
+        val cleaned = stored.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        return cleaned.ifEmpty { listOf(RegistryDefaults.url) }
+    }
+
+    fun loadRegistryUrl(urls: List<String>): String {
+        val active = prefs.getString(KEY_REGISTRY, "").orEmpty().trim()
+        return if (active in urls) active else urls.first()
+    }
+
+    fun saveRegistryUrls(urls: List<String>) {
+        prefs.edit().putString(KEY_REGISTRY_LIST, json.encodeToString(urls)).apply()
+    }
 
     fun saveRegistryUrl(url: String) {
         prefs.edit().putString(KEY_REGISTRY, url.trim()).apply()
@@ -86,6 +117,8 @@ class SettingsStore(context: Context) {
         const val KEY_SERVERS = "servers"
         const val KEY_ACTIVE = "activeServer"
         const val KEY_REGISTRY = "registryUrl"
+        const val KEY_REGISTRY_LIST = "registryUrls"
+        const val KEY_REGISTRY_ACCOUNT = "registryAccount"
 
         const val KEY_BASE_URL = "baseUrl"
         const val KEY_USERNAME = "username"

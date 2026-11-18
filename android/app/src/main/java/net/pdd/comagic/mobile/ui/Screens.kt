@@ -45,15 +45,22 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
@@ -102,6 +109,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.pdd.comagic.mobile.ChatLine
+import net.pdd.comagic.mobile.Credentials
 import net.pdd.comagic.mobile.DirectoryPickerState
 import net.pdd.comagic.mobile.R
 import net.pdd.comagic.mobile.Endpoint
@@ -153,48 +161,161 @@ private fun BackButton(onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegistryConnectScreen(
+fun LoginScreen(
     registryUrl: String,
+    registryUrls: List<String>,
     loading: Boolean,
     error: String?,
-    onRetry: () -> Unit
+    onSelectAddress: (String) -> Unit,
+    onAddAddress: (String) -> Unit,
+    onDeleteAddress: (String) -> Unit,
+    onSubmit: (url: String, username: String, password: String) -> Unit
 ) {
-    Scaffold(topBar = { TopAppBar(title = { Text("Comagic") }) }) { padding ->
+    var username by rememberSaveable { mutableStateOf(Credentials.username) }
+    var password by rememberSaveable { mutableStateOf(Credentials.password) }
+    var expanded by remember { mutableStateOf(false) }
+    var adding by remember { mutableStateOf(false) }
+    var draft by remember { mutableStateOf("") }
+
+    if (adding) {
+        AlertDialog(
+            onDismissRequest = { adding = false },
+            title = { Text("添加注册中心 IP") },
+            text = {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    placeholder = { Text("192.168.100.136") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onAddAddress(draft)
+                    draft = ""
+                    adding = false
+                }) { Text("添加") }
+            },
+            dismissButton = {
+                TextButton(onClick = { adding = false }) { Text("取消") }
+            }
+        )
+    }
+
+    Scaffold { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (loading) {
-                CircularProgressIndicator()
-            }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(40.dp))
+            Text("Comagic", style = MaterialTheme.typography.headlineMedium)
             Text(
-                if (error == null) "正在连接注册中心…" else "注册中心连接失败",
-                style = MaterialTheme.typography.titleSmall
-            )
-            Text(
-                registryUrl,
+                "登录注册中心，自动发现 agents",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it }
+            ) {
+                OutlinedTextField(
+                    value = registryHost(registryUrl),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("注册中心 IP") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    registryUrls.forEach { url ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(registryHost(url), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            },
+                            onClick = {
+                                onSelectAddress(url)
+                                expanded = false
+                            },
+                            trailingIcon = {
+                                if (registryUrls.size > 1) {
+                                    IconButton(onClick = { onDeleteAddress(url) }) {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = "删除",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("添加 IP") },
+                        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                        onClick = {
+                            draft = ""
+                            adding = true
+                            expanded = false
+                        }
+                    )
+                }
+            }
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("账号") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("密码") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
             error?.let {
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedButton(onClick = onRetry, enabled = !loading) {
-                Text("重新发现")
+            Button(
+                onClick = { onSubmit(registryUrl, username, password) },
+                enabled = !loading,
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("登录")
+                }
             }
         }
     }
+}
+
+private fun registryHost(url: String): String {
+    val withoutScheme = url.substringAfter("://", url)
+    return withoutScheme.substringBefore('/').substringBefore(':').ifBlank { url }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -205,39 +326,15 @@ fun ServersScreen(
     statuses: Map<String, ServerStatus>,
     onSelect: (Endpoint) -> Unit,
     onDelete: (Endpoint) -> Unit,
-    onClose: () -> Unit,
-    batteryOptimized: Boolean,
-    onRequestIgnoreBattery: () -> Unit,
-    registryUrl: String,
-    registryServers: List<RegistryServer>,
     registryLoading: Boolean,
-    registryError: String?,
-    onRegistryUrlChange: (String) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onLogout: () -> Unit
 ) {
     var pendingDelete by remember { mutableStateOf<Endpoint?>(null) }
-
-    pendingDelete?.let { server ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text("删除 agent") },
-            text = { Text("确定删除「${server.label}」吗？会话仍保留在对应机器上。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDelete(server)
-                    pendingDelete = null
-                }) { Text("删除") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("取消") }
-            }
-        )
-    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                navigationIcon = { BackButton(onClose) },
                 title = {
                     Column {
                         Text("agents")
@@ -249,6 +346,13 @@ fun ServersScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "退出登录",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     IconButton(onClick = onRefresh, enabled = !registryLoading) {
                         if (registryLoading) {
                             CircularProgressIndicator(
@@ -268,13 +372,6 @@ fun ServersScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            RegistryPanel(
-                registryUrl = registryUrl,
-                servers = registryServers,
-                error = registryError,
-                onChange = onRegistryUrlChange
-            )
-
             if (servers.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -304,10 +401,6 @@ fun ServersScreen(
                 }
             }
 
-            BatteryOptimizationCard(
-                optimized = batteryOptimized,
-                onRequest = onRequestIgnoreBattery
-            )
         }
     }
 }
@@ -472,77 +565,6 @@ private fun ServerAvailability(status: ServerStatus?) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-    }
-}
-
-@Composable
-private fun RegistryPanel(
-    registryUrl: String,
-    servers: List<RegistryServer>,
-    error: String?,
-    onChange: (String) -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
-                value = registryUrl,
-                onValueChange = onChange,
-                label = { Text("注册中心地址") },
-                placeholder = { Text(RegistryDefaults.url) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            error?.let {
-                Text(
-                    it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-            if (servers.isNotEmpty()) {
-                Text(
-                    "已发现 ${servers.size} 个 agents",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BatteryOptimizationCard(optimized: Boolean, onRequest: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth().padding(16.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("后台保活", style = MaterialTheme.typography.titleSmall)
-            Text(
-                if (optimized) {
-                    "系统可能休眠 App，导致聊天页断线重连。建议关闭电池优化；MIUI/HyperOS 还需允许自启动，并把省电策略设为「无限制」。"
-                } else {
-                    "已关闭电池优化。MIUI/HyperOS 仍需允许自启动，并把省电策略设为「无限制」。"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (optimized) {
-                OutlinedButton(onClick = onRequest) { Text("关闭电池优化") }
-            }
-        }
     }
 }
 
