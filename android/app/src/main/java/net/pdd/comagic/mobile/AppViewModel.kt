@@ -29,6 +29,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val registryUrls = store.loadRegistryUrls()
         UiState(
             account = store.loadRegistryAccount(),
+            showHiddenDirs = store.loadShowHiddenDirs(),
+            hiddenAgentIds = store.loadHiddenAgentIds(),
             endpoint = store.load(),
             servers = store.loadServers(),
             registryUrl = store.loadRegistryUrl(registryUrls),
@@ -102,11 +104,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteServer(server: Endpoint) {
+        val hidden = _state.value.hiddenAgentIds + server.agentId
+        store.saveHiddenAgentIds(hidden)
         val remaining = _state.value.servers.filterNot { it.id == server.id }
         if (_state.value.endpoint.id != server.id) {
             store.saveServers(remaining, _state.value.endpoint.id)
             _state.update {
-                it.copy(servers = remaining, serverStatus = it.serverStatus - server.id)
+                it.copy(
+                    servers = remaining,
+                    serverStatus = it.serverStatus - server.id,
+                    hiddenAgentIds = hidden
+                )
             }
             return
         }
@@ -116,6 +124,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _state.update {
             it.copy(
                 servers = remaining,
+                hiddenAgentIds = hidden,
                 endpoint = next,
                 sessions = emptyList(),
                 agents = emptyList(),
@@ -229,6 +238,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.IO) {
                 RegistryClient(url, account?.username ?: Credentials.username, account?.password ?: Credentials.password)
                     .listServers()
+                    .comagicOnly()
             }
         }.getOrElse { error ->
             _state.update {
@@ -269,6 +279,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun restoreHiddenAgents() {
+        store.saveHiddenAgentIds(emptySet())
+        _state.update { it.copy(hiddenAgentIds = emptySet()) }
+        refreshAgents()
+    }
+
+    fun setShowHiddenDirs(enabled: Boolean) {
+        store.saveShowHiddenDirs(enabled)
+        _state.update { it.copy(showHiddenDirs = enabled) }
+    }
+
     fun selectRegistryAddress(url: String) {
         if (url !in _state.value.registryUrls) return
         store.saveRegistryUrl(url)
@@ -305,7 +326,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) { RegistryClient(url, user, pass).listServers() }
-            }.onSuccess { servers ->
+            }.onSuccess { raw ->
+                val servers = raw.comagicOnly()
                 val account = RegistryAccount(baseUrl = url, username = user, password = pass)
                 store.saveRegistryAccount(account)
                 val urls = (_state.value.registryUrls + url).distinct()
@@ -330,6 +352,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    private fun pruneStaleRegistryServers(found: List<RegistryServer>, registryUrl: String) {
+        val prefix = "$registryUrl/s/"
+        val alive = found.map { "$prefix${it.id}".trimEnd('/') }.toSet()
+        val current = _state.value.servers
+        val remaining = current.filter { endpoint ->
+            val url = endpoint.baseUrl.trimEnd('/')
+            !url.startsWith(prefix) || url in alive
+        }
+        if (remaining.size == current.size) return
+        val active = _state.value.endpoint
+        val nextActive = when {
+            remaining.any { it.id == active.id } -> active
+            remaining.isNotEmpty() -> remaining.first()
+            else -> Endpoint()
+        }
+        store.saveServers(remaining, nextActive.id)
+        _state.update {
+            it.copy(
+                servers = remaining,
+                endpoint = nextActive,
+                serverStatus = it.serverStatus.filterKeys { id -> remaining.any { server -> server.id == id } }
+            )
+        }
+    }
+
+    private fun List<RegistryServer>.comagicOnly(): List<RegistryServer> =
+        filter { it.online && (it.type.isBlank() || it.type.equals("comagic", ignoreCase = true)) }
 
     private fun normalizeRegistryUrl(input: String): String {
         var value = input.trim()
@@ -405,7 +455,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         .listServers()
                 }
             }
-                .onSuccess { servers ->
+                .onSuccess { raw ->
+                    val servers = raw.comagicOnly()
                     val added = addRegistryServers(servers, activateFirst = !_state.value.endpoint.ready)
                     _state.update {
                         it.copy(registryServers = servers, registryLoading = false, registryError = null)
@@ -429,13 +480,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun addRegistryServers(found: List<RegistryServer>, activateFirst: Boolean): Int {
         val registryUrl = _state.value.registryUrl.trim().trimEnd('/')
         if (registryUrl.isBlank()) return 0
+        pruneStaleRegistryServers(found, registryUrl)
         var added = 0
         found.forEach { server ->
             if (server.id.isBlank()) return@forEach
+            if (server.id in _state.value.hiddenAgentIds) return@forEach
             val baseUrl = "$registryUrl/s/${server.id}"
             if (_state.value.servers.any { it.baseUrl.equals(baseUrl, ignoreCase = true) }) return@forEach
             val endpoint = Endpoint(
                 name = server.name.ifBlank { server.id },
+                agentType = server.type,
+                agentVersion = server.version,
                 baseUrl = baseUrl,
                 username = Credentials.username,
                 password = Credentials.password,

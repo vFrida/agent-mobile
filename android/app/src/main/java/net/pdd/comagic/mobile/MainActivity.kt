@@ -32,6 +32,7 @@ import net.pdd.comagic.mobile.ui.ComagicTheme
 import net.pdd.comagic.mobile.ui.ServersScreen
 import net.pdd.comagic.mobile.ui.LoginScreen
 import net.pdd.comagic.mobile.ui.SessionListScreen
+import net.pdd.comagic.mobile.ui.SettingsScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun Root(state: UiState, viewModel: AppViewModel) {
     var serversOpen by rememberSaveable { mutableStateOf(true) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -96,14 +98,20 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
         if (serversOpen) viewModel.refreshServerStatuses()
     }
 
-    BackHandler(enabled = state.sessionID != null || state.directoryPicker != null) {
+    BackHandler(enabled = state.sessionID != null || state.directoryPicker != null || settingsOpen) {
         when {
             state.sessionID != null -> viewModel.closeSession()
             state.directoryPicker != null -> viewModel.closeDirectoryPicker()
+            settingsOpen -> settingsOpen = false
         }
     }
 
-    BackHandler(enabled = state.sessionID == null && state.directoryPicker == null && !serversOpen) {
+    BackHandler(
+        enabled = state.sessionID == null &&
+            state.directoryPicker == null &&
+            !serversOpen &&
+            !settingsOpen
+    ) {
         serversOpen = true
     }
 
@@ -133,10 +141,25 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
 
         state.directoryPicker != null -> DirectoryPickerScreen(
             picker = state.directoryPicker!!,
+            showHiddenDirs = state.showHiddenDirs,
             onNavigate = viewModel::navigateDirectory,
             onSelect = viewModel::confirmDirectory,
             onRefresh = viewModel::openDirectoryPicker,
             onCancel = viewModel::closeDirectoryPicker
+        )
+
+        settingsOpen -> SettingsScreen(
+            registryUrl = state.registryUrl,
+            username = state.account?.username ?: "",
+            showHiddenDirs = state.showHiddenDirs,
+            hiddenAgentCount = state.hiddenAgentIds.size,
+            onToggleHiddenDirs = viewModel::setShowHiddenDirs,
+            onRestoreHiddenAgents = viewModel::restoreHiddenAgents,
+            onLogout = {
+                settingsOpen = false
+                viewModel.logout()
+            },
+            onClose = { settingsOpen = false }
         )
 
         serversOpen -> ServersScreen(
@@ -150,6 +173,7 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onDelete = viewModel::deleteServer,
             registryLoading = state.registryLoading,
             onRefresh = viewModel::refreshAgents,
+            onOpenSettings = { settingsOpen = true },
             onLogout = viewModel::logout
         )
 

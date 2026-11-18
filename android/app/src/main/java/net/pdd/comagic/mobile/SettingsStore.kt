@@ -31,6 +31,19 @@ class SettingsStore(context: Context) {
 
     fun loadActiveId(): String = prefs.getString(KEY_ACTIVE, "").orEmpty()
 
+    fun loadHiddenAgentIds(): Set<String> =
+        prefs.getStringSet(KEY_HIDDEN_AGENTS, emptySet()).orEmpty()
+
+    fun saveHiddenAgentIds(ids: Set<String>) {
+        prefs.edit().putStringSet(KEY_HIDDEN_AGENTS, ids).apply()
+    }
+
+    fun loadShowHiddenDirs(): Boolean = prefs.getBoolean(KEY_SHOW_HIDDEN, false)
+
+    fun saveShowHiddenDirs(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_HIDDEN, enabled).apply()
+    }
+
     fun loadRegistryAccount(): RegistryAccount? {
         val raw = prefs.getString(KEY_REGISTRY_ACCOUNT, null)
         if (raw.isNullOrBlank()) return null
@@ -119,6 +132,8 @@ class SettingsStore(context: Context) {
         const val KEY_REGISTRY = "registryUrl"
         const val KEY_REGISTRY_LIST = "registryUrls"
         const val KEY_REGISTRY_ACCOUNT = "registryAccount"
+        const val KEY_SHOW_HIDDEN = "showHiddenDirs"
+        const val KEY_HIDDEN_AGENTS = "hiddenAgents"
 
         const val KEY_BASE_URL = "baseUrl"
         const val KEY_USERNAME = "username"

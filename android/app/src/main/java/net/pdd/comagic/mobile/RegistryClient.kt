@@ -23,7 +23,7 @@ class RegistryClient(
 
     fun listServers(): List<RegistryServer> {
         val request = Request.Builder()
-            .url("$base/api/servers")
+            .url("$base/api/agents")
             .header("Authorization", authorization)
             .get()
             .build()

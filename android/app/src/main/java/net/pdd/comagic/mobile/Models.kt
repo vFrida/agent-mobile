@@ -119,6 +119,7 @@ data class FsListResponse(val data: List<FsEntry> = emptyList())
 data class RegistryServer(
     val id: String = "",
     val name: String = "",
+    val type: String = "",
     val url: String = "",
     val directory: String = "",
     val version: String = "",
@@ -188,6 +189,8 @@ data class RegistryAccount(
 data class Endpoint(
     val id: String = "",
     val name: String = "",
+    val agentType: String = "",
+    val agentVersion: String = "",
     val baseUrl: String = "",
     val username: String = Credentials.username,
     val password: String = Credentials.password,
@@ -314,6 +317,8 @@ data class UiState(
     val historyLimit: Int = 20,
     val loadingOlder: Boolean = false,
     val account: RegistryAccount? = null,
+    val showHiddenDirs: Boolean = false,
+    val hiddenAgentIds: Set<String> = emptySet(),
     val loginLoading: Boolean = false,
     val loginError: String? = null,
     val registryUrl: String = RegistryDefaults.url,

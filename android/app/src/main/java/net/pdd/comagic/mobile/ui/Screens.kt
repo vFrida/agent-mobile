@@ -49,6 +49,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -64,6 +65,7 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -158,6 +160,103 @@ private fun BackButton(onClick: () -> Unit) {
     }
 }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    registryUrl: String,
+    username: String,
+    showHiddenDirs: Boolean,
+    hiddenAgentCount: Int,
+    onToggleHiddenDirs: (Boolean) -> Unit,
+    onRestoreHiddenAgents: () -> Unit,
+    onLogout: () -> Unit,
+    onClose: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("设置") },
+                navigationIcon = { BackButton(onClose) }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SettingRow("注册中心 IP", registryHost(registryUrl))
+                    HorizontalDivider()
+                    SettingRow("账号", username)
+                }
+            }
+            Text("会话配置", style = MaterialTheme.typography.titleSmall)
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("显示隐藏目录", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "新建会话选择工作目录时显示以 . 开头的目录",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = showHiddenDirs, onCheckedChange = onToggleHiddenDirs)
+                }
+            }
+            if (hiddenAgentCount > 0) {
+                OutlinedButton(
+                    onClick = onRestoreHiddenAgents,
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Text("恢复已删除的 agents（$hiddenAgentCount）")
+                }
+            }
+            OutlinedButton(
+                onClick = onLogout,
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Text("退出登录", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -328,6 +427,7 @@ fun ServersScreen(
     onDelete: (Endpoint) -> Unit,
     registryLoading: Boolean,
     onRefresh: () -> Unit,
+    onOpenSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
     var pendingDelete by remember { mutableStateOf<Endpoint?>(null) }
@@ -346,6 +446,13 @@ fun ServersScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = "设置",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     IconButton(onClick = onLogout) {
                         Icon(
                             Icons.AutoMirrored.Filled.ExitToApp,
@@ -528,7 +635,7 @@ private fun SwipeableServerCard(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        ServerAvailability(status)
+                        ServerAvailability(status, server.agentType, server.agentVersion)
                     }
                 }
             }
@@ -537,16 +644,22 @@ private fun SwipeableServerCard(
 }
 
 @Composable
-private fun ServerAvailability(status: ServerStatus?) {
+private fun ServerAvailability(status: ServerStatus?, agentType: String, agentVersion: String) {
+    val typeLabel = agentType.ifBlank { "comagic" }
+    val version = status?.version?.takeIf { it.isNotBlank() } ?: agentVersion
     val color = when {
         status == null || status.checking -> MaterialTheme.colorScheme.onSurfaceVariant
         status.online -> Color(0xFF2E7D32)
         else -> MaterialTheme.colorScheme.error
     }
     val label = when {
-        status == null || status.checking -> "检测中…"
-        status.online -> if (status.version.isBlank()) "服务可用" else "服务可用 · ${status.version}"
-        else -> "服务不可用"
+        status == null || status.checking -> "$typeLabel · 检测中…"
+        status.online -> if (version.isBlank()) {
+            "$typeLabel · 服务可用"
+        } else {
+            "$typeLabel · 服务可用 · $version"
+        }
+        else -> "$typeLabel · 服务不可用"
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -923,6 +1036,7 @@ private fun relativeTime(ms: Long): String {
 @Composable
 fun DirectoryPickerScreen(
     picker: DirectoryPickerState,
+    showHiddenDirs: Boolean,
     onNavigate: (String) -> Unit,
     onSelect: (String) -> Unit,
     onRefresh: () -> Unit,
@@ -934,10 +1048,14 @@ fun DirectoryPickerScreen(
 
     LaunchedEffect(picker.current) { manualPath = picker.current }
 
-    val directories = remember(picker.entries, query) {
+    val directories = remember(picker.entries, query, showHiddenDirs) {
         val keyword = query.trim()
         picker.entries
             .filter { it.type == "directory" }
+            .filter {
+                showHiddenDirs ||
+                    !it.path.trimEnd('/').substringAfterLast('/').startsWith(".")
+            }
             .filter { keyword.isEmpty() || it.path.contains(keyword, ignoreCase = true) }
             .sortedBy { it.path.lowercase() }
     }
