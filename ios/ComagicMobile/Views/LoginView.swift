@@ -12,7 +12,7 @@ struct LoginView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Comagic")
+                Text("Agents")
                     .font(.system(size: 30, weight: .bold))
                     .foregroundStyle(Palette.textStrong)
                 Text("登录注册中心，自动发现 agents")

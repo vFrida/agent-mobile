@@ -176,7 +176,7 @@ extension String {
 }
 
 enum Keychain {
-    private static let service = "net.pdd.comagic.mobile"
+    private static let service = "net.agents.mobile"
 
     static func read(_ key: String) -> String? {
         var query = baseQuery(key)

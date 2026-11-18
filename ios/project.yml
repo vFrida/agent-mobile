@@ -1,6 +1,6 @@
 name: ComagicMobile
 options:
-  bundleIdPrefix: net.pdd.comagic
+  bundleIdPrefix: net.agents
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -14,7 +14,7 @@ targets:
     info:
       path: ComagicMobile/Info.plist
       properties:
-        CFBundleDisplayName: Comagic
+        CFBundleDisplayName: Agents
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -22,14 +22,14 @@ targets:
         NSSpeechRecognitionUsageDescription: 将语音转换成文字
         NSPhotoLibraryUsageDescription: 选择图片发送给 agent
         CFBundleURLTypes:
-          - CFBundleURLName: net.pdd.comagic.mobile.pair
+          - CFBundleURLName: net.agents.mobile.pair
             CFBundleURLSchemes:
               - comagic
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: net.pdd.comagic.mobile
+        PRODUCT_BUNDLE_IDENTIFIER: net.agents.mobile
         TARGETED_DEVICE_FAMILY: "1"
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -45,7 +45,7 @@ targets:
       - target: ComagicMobile
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: net.pdd.comagic.mobile.tests
+        PRODUCT_BUNDLE_IDENTIFIER: net.agents.mobile.tests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
