@@ -30,7 +30,7 @@ def now_ms() -> int:
 
 
 def log(message: str) -> None:
-    print(f"[comagic-registry] {message}", flush=True)
+    print(f"[agent-registry] {message}", flush=True)
 
 
 class Registry:
@@ -75,9 +75,12 @@ class Registry:
             entry = self.servers.get(server_id)
             return dict(entry) if entry else None
 
-    def list(self) -> list[dict]:
+    def list(self, online_only: bool = False) -> list[dict]:
         with self.lock:
-            return [self._public(entry) for entry in self.servers.values()]
+            entries = [self._public(entry) for entry in self.servers.values()]
+        if online_only:
+            entries = [entry for entry in entries if entry["online"]]
+        return entries
 
     @staticmethod
     def _public(entry: dict) -> dict:
@@ -86,6 +89,7 @@ class Registry:
             "name": entry.get("name") or entry.get("url"),
             "url": entry.get("url"),
             "directory": entry.get("directory") or "",
+            "type": entry.get("type") or "",
             "version": entry.get("version") or "",
             "lastSeen": entry.get("lastSeen") or 0,
             "online": now_ms() - int(entry.get("lastSeen") or 0) < OFFLINE_AFTER_MS,
@@ -171,8 +175,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self._require_auth():
             return
 
-        if path == "/api/servers":
-            self._send_json(200, {"data": REGISTRY.list()})
+        if path == "/api/agents":
+            self._send_json(200, {"data": REGISTRY.list(online_only=True)})
             return
 
         if path.startswith("/s/"):
@@ -200,8 +204,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, entry)
             return
 
-        if path.startswith("/api/servers/") and path.endswith("/heartbeat"):
-            server_id = path[len("/api/servers/"):-len("/heartbeat")]
+        if path.startswith("/api/agents/") and path.endswith("/heartbeat"):
+            server_id = path[len("/api/agents/"):-len("/heartbeat")]
             if REGISTRY.heartbeat(server_id):
                 self.send_response(204)
                 self.send_header("Content-Length", "0")
@@ -231,8 +235,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self._require_auth():
             return
 
-        if path.startswith("/api/servers/"):
-            server_id = path[len("/api/servers/"):]
+        if path.startswith("/api/agents/"):
+            server_id = path[len("/api/agents/"):]
             REGISTRY.remove(server_id)
             self.send_response(204)
             self.send_header("Content-Length", "0")
@@ -354,7 +358,7 @@ def main() -> int:
     print(f"  用户名: {args.username}")
     print(f"  密码: {args.password}")
     print("  注册接口: POST /api/register")
-    print("  服务器列表: GET /api/servers")
+    print("  agents 列表: GET /api/agents")
     print("  转发: /s/<server_id>/...")
     print()
     try:

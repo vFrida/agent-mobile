@@ -41,6 +41,26 @@ STATE_PATH = Path(
 ).expanduser()
 RUN_AUTO = os.environ.get("COMAGIC_RUN_AUTO") == "1"
 
+
+def git_commit_count() -> str:
+    repo = Path(__file__).resolve().parent.parent
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), "rev-list", "--count", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        count = result.stdout.strip()
+        if result.returncode == 0 and count.isdigit():
+            return count
+    except Exception:
+        pass
+    return "unknown"
+
+
+VERSION = git_commit_count()
+
 AGENTS = [
     {
         "id": "build",
@@ -525,7 +545,7 @@ class Handler(BaseHTTPRequestHandler):
         path, parts, query = self._path_parts()
 
         if path == "/global/health":
-            self._send_json(200, {"healthy": True, "version": "bridge-0.1"})
+            self._send_json(200, {"healthy": True, "version": VERSION})
             return
         if path == "/event":
             self._serve_events()
@@ -950,11 +970,12 @@ def start_registry_reporter(
             "/api/register",
             {
                 "name": name,
+                "type": "comagic",
                 "url": server_url,
                 "username": username,
                 "password": password,
                 "directory": directory,
-                "version": "bridge-0.1",
+                "version": VERSION,
             },
         )
         state["id"] = json.loads(raw).get("id")
@@ -968,7 +989,7 @@ def start_registry_reporter(
                     register()
                 else:
                     try:
-                        call("POST", f"/api/servers/{server_id}/heartbeat")
+                        call("POST", f"/api/agents/{server_id}/heartbeat")
                     except urllib.error.HTTPError as error:
                         if error.code == 404:
                             state["id"] = None
@@ -983,7 +1004,7 @@ def start_registry_reporter(
         if not server_id:
             return
         try:
-            call("DELETE", f"/api/servers/{server_id}")
+            call("DELETE", f"/api/agents/{server_id}")
         except Exception:
             pass
 

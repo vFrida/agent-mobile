@@ -36,7 +36,7 @@ launchctl bootout gui/$(id -u)/com.comagic.mobile-registry`。
 ### 方式一：自建 bridge 服务（推荐，不依赖 comagic web）
 
 ```bash
-python3 server/comagic_server.py --directory /Users/txc --port 4907
+python3 agents/comagic_agent.py --directory /Users/txc --port 4907
 ```
 
 首次启动会打印地址、用户名 `comagic` 和密码，并生成配对二维码。密码默认固定为 `YFl4cVaQ8smozi4I`（可用 `--password` 或 `COMAGIC_MOBILE_PASSWORD` 覆盖）。详见 [server/README.md](server/README.md)。

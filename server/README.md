@@ -3,14 +3,14 @@
 一个只依赖 Python 3 标准库的本地服务：把手机 App 的 HTTP/SSE 请求转成 `comagic run --format json` 子进程，不再依赖 `comagic web`。
 
 ```
-Android / iOS  ──HTTP+SSE──▶  server/comagic_server.py  ──spawn──▶  comagic run --format json
+Android / iOS  ──HTTP+SSE──▶  agents/comagic_agent.py  ──spawn──▶  comagic run --format json
                                       │
                                       └── state.json（手机侧会话 ID ↔ comagic 会话 ID）
 ```
 
 ## 注册中心（多台开发机）
 
-`server/registry_server.py` 是一个注册中心 + 反向代理：bridge 启动时向它注册，App 只连它，通过 `/s/<server_id>/...` 转发到对应机器。
+`server/server.py` 是一个注册中心 + 反向代理：bridge 启动时向它注册，App 只连它，通过 `/s/<server_id>/...` 转发到对应机器。
 
 ```
 bridge（4907）──启动注册/心跳──▶  注册中心（4908）
@@ -19,13 +19,13 @@ App ──HTTP+SSE──▶ 注册中心 /s/<id>/... ──转发──▶ bridg
 
 ```bash
 # 1) 起注册中心
-python3 server/registry_server.py --port 4908
+python3 server/server.py --port 4908
 
 # 2) bridge 注册到它
-python3 server/comagic_server.py --port 4907 --registry http://<本机IP>:4908
+python3 agents/comagic_agent.py --port 4907 --registry http://<本机IP>:4908
 
 # 3) 查看已注册的服务器
-curl -u comagic:YFl4cVaQ8smozi4I http://<本机IP>:4908/api/servers
+curl -u comagic:YFl4cVaQ8smozi4I http://<本机IP>:4908/api/agents
 
 # 4) App 里把服务器地址填成代理地址，账号密码用注册中心的
 #    http://<本机IP>:4908/s/<server_id>
@@ -35,10 +35,10 @@ curl -u comagic:YFl4cVaQ8smozi4I http://<本机IP>:4908/api/servers
 
 | 接口 | 说明 |
 | --- | --- |
-| `POST /api/register` | bridge 注册 `{name,url,username,password,directory,version}` |
-| `POST /api/servers/{id}/heartbeat` | 心跳，超过 60s 标记 offline |
-| `DELETE /api/servers/{id}` | 注销（bridge 退出时自动调用） |
-| `GET /api/servers` | 已注册服务器列表（含 online 状态） |
+| `POST /api/register` | bridge 注册 `{name,type,url,username,password,directory,version}`，`type` 为 `comagic` |
+| `POST /api/agents/{id}/heartbeat` | 心跳，超过 60s 标记 offline |
+| `DELETE /api/agents/{id}` | 注销（bridge 退出时自动调用） |
+| `GET /api/agents` | 已注册服务器列表（含 online 状态） |
 | `GET /global/health` | 健康检查 |
 
 bridge 相关参数：`--registry`（`COMAGIC_REGISTRY`）、`--registry-username`、`--registry-password`、`--name`。
@@ -48,7 +48,7 @@ bridge 相关参数：`--registry`（`COMAGIC_REGISTRY`）、`--registry-usernam
 ## 启动
 
 ```bash
-python3 server/comagic_server.py --directory /Users/txc --port 4907
+python3 agents/comagic_agent.py --directory /Users/txc --port 4907
 ```
 
 首次启动会打印地址、用户名 `comagic` 和密码，并调用 `scripts/pair-qr.sh` 生成配对二维码。手机 App 扫码或手填即可。密码默认固定为 `YFl4cVaQ8smozi4I`。
