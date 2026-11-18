@@ -315,6 +315,35 @@ struct ComagicClient {
     }
 }
 
+struct RegistryClient {
+    let baseURL: String
+    var username: String = Credentials.username
+    var password: String = Credentials.password
+
+    private var base: String {
+        var value = baseURL.trimmingCharacters(in: .whitespaces)
+        while value.hasSuffix("/") { value.removeLast() }
+        return value
+    }
+
+    func listServers() async throws -> [RegistryServer] {
+        guard var components = URLComponents(string: base + "/api/servers") else {
+            throw ClientError.badResponse
+        }
+        components.queryItems = []
+        var request = URLRequest(url: components.url!, timeoutInterval: 15)
+        let token = Data("\(username):\(password)".utf8).base64EncodedString()
+        request.setValue("Basic \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ClientError.badResponse }
+        guard (200..<300).contains(http.statusCode) else {
+            let text = String(data: data, encoding: .utf8)?.prefix(200) ?? ""
+            throw ClientError.http(http.statusCode, String(text))
+        }
+        return try JSONDecoder().decode(RegistryListResponse.self, from: data).data
+    }
+}
+
 enum ClientError: LocalizedError {
     case badResponse
     case http(Int, String)

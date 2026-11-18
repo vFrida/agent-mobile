@@ -22,6 +22,10 @@ final class AppModel: ObservableObject {
     @Published var oldestMessageID: String?
     @Published var historyLimit = 20
     @Published var loadingOlder = false
+    @Published var registryURL: String
+    @Published var registryServers: [RegistryServer] = []
+    @Published var registryLoading = false
+    @Published var registryError: String?
 
     var currentAgent: String { current?.agent ?? "-" }
     var currentModelLabel: String {
@@ -40,6 +44,49 @@ final class AppModel: ObservableObject {
     init() {
         servers = EndpointStore.shared.servers
         endpoint = EndpointStore.shared.endpoint
+        registryURL = EndpointStore.shared.registryURL
+    }
+
+    func saveRegistryURL(_ value: String) {
+        registryURL = value
+        EndpointStore.shared.registryURL = value
+        registryError = nil
+    }
+
+    func refreshRegistry() async {
+        let url = registryURL.trimmingCharacters(in: .whitespaces)
+        guard !url.isEmpty else {
+            registryError = "请先填写注册中心地址"
+            return
+        }
+        registryLoading = true
+        registryError = nil
+        do {
+            registryServers = try await RegistryClient(baseURL: url).listServers()
+        } catch {
+            registryError = error.localizedDescription
+        }
+        registryLoading = false
+    }
+
+    func addRegistryServer(_ server: RegistryServer) async {
+        let url = registryURL.trimmingCharacters(in: .whitespaces)
+        var base = url
+        while base.hasSuffix("/") { base.removeLast() }
+        guard !base.isEmpty, !server.id.isEmpty else { return }
+        var endpoint = Endpoint(
+            name: server.name ?? server.id,
+            baseURL: "\(base)/s/\(server.id)",
+            username: Credentials.username,
+            password: Credentials.password,
+            directory: server.directory ?? ""
+        )
+        endpoint = EndpointStore.shared.upsert(endpoint)
+        EndpointStore.shared.activate(endpoint)
+        self.endpoint = endpoint
+        servers = EndpointStore.shared.servers
+        close()
+        await refresh()
     }
 
     private var client: ComagicClient? {

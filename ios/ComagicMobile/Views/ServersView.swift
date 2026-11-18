@@ -15,6 +15,62 @@ struct ServersView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("注册中心") {
+                    TextField("http://192.168.1.10:4908", text: Binding(
+                        get: { model.registryURL },
+                        set: { model.saveRegistryURL($0) }
+                    ))
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                    Button {
+                        Task { await model.refreshRegistry() }
+                    } label: {
+                        HStack {
+                            Text("发现服务器")
+                            if model.registryLoading { ProgressView() }
+                        }
+                    }
+                    .disabled(model.registryLoading)
+
+                    if let error = model.registryError {
+                        Text(error).font(.caption).foregroundStyle(Palette.critical)
+                    }
+                }
+
+                if !model.registryServers.isEmpty {
+                    Section("发现的服务器") {
+                        ForEach(model.registryServers) { server in
+                            Button {
+                                Task {
+                                    await model.addRegistryServer(server)
+                                    dismiss()
+                                }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Circle()
+                                        .fill(server.online == true ? Palette.sendGreen : Palette.systemText)
+                                        .frame(width: 8, height: 8)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(server.name ?? server.id)
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundStyle(Palette.textStrong)
+                                        Text(server.directory ?? server.url ?? "")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(Palette.textWeak)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer(minLength: 0)
+                                    Text("添加")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(Palette.accentBlue)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if model.servers.isEmpty {
                     Section {
                         Text("还没有服务器")

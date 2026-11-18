@@ -142,6 +142,20 @@ struct MessageDto: Codable {
     var parts: [MessagePart]?
 }
 
+struct RegistryServer: Codable, Identifiable, Hashable {
+    var id: String
+    var name: String?
+    var url: String?
+    var directory: String?
+    var version: String?
+    var lastSeen: Int64?
+    var online: Bool?
+}
+
+struct RegistryListResponse: Codable {
+    let data: [RegistryServer]
+}
+
 struct HistoryPage {
     var lines: [ChatLine] = []
     var oldestID: String?

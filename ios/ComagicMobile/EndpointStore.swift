@@ -18,6 +18,11 @@ final class EndpointStore {
         defaults.string(forKey: activeKey) ?? ""
     }
 
+    var registryURL: String {
+        get { defaults.string(forKey: "comagic.registryURL") ?? "" }
+        set { defaults.set(newValue.trimmingCharacters(in: .whitespaces), forKey: "comagic.registryURL") }
+    }
+
     var servers: [Endpoint] {
         migrateIfNeeded()
         return storedServers()
