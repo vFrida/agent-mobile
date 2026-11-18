@@ -104,6 +104,7 @@ import net.pdd.comagic.mobile.R
 import net.pdd.comagic.mobile.Endpoint
 import net.pdd.comagic.mobile.ModelRef
 import net.pdd.comagic.mobile.PairPayload
+import net.pdd.comagic.mobile.RegistryDefaults
 import net.pdd.comagic.mobile.RegistryServer
 import net.pdd.comagic.mobile.SessionRef
 import net.pdd.comagic.mobile.ServerStatus
@@ -482,7 +483,7 @@ private fun RegistryPanel(
             OutlinedTextField(
                 value = registryUrl,
                 onValueChange = onChange,
-                placeholder = { Text("http://192.168.1.10:4908") },
+                placeholder = { Text(RegistryDefaults.url) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )

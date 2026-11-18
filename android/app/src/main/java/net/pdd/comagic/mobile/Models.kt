@@ -173,6 +173,10 @@ object Credentials {
     const val password = "YFl4cVaQ8smozi4I"
 }
 
+object RegistryDefaults {
+    const val url = "http://192.168.100.136:4908"
+}
+
 @Serializable
 data class Endpoint(
     val id: String = "",

@@ -184,6 +184,10 @@ enum Credentials {
     static let password = "YFl4cVaQ8smozi4I"
 }
 
+enum RegistryDefaults {
+    static let url = "http://192.168.100.136:4908"
+}
+
 struct Endpoint: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var name: String = ""

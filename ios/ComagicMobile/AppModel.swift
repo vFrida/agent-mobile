@@ -45,6 +45,27 @@ final class AppModel: ObservableObject {
         servers = EndpointStore.shared.servers
         endpoint = EndpointStore.shared.endpoint
         registryURL = EndpointStore.shared.registryURL
+        if !servers.contains(where: { $0.ready }) {
+            Task { await autoConnectFromRegistry() }
+        }
+    }
+
+    private func autoConnectFromRegistry() async {
+        guard !servers.contains(where: { $0.ready }) else { return }
+        let url = registryURL.trimmingCharacters(in: .whitespaces)
+        guard !url.isEmpty else { return }
+        do {
+            let found = try await RegistryClient(baseURL: url).listServers()
+            registryServers = found
+            registryError = nil
+            guard let server = found.first(where: { $0.online == true }) ?? found.first else {
+                registryError = "注册中心暂无可用服务器"
+                return
+            }
+            await addRegistryServer(server)
+        } catch {
+            registryError = error.localizedDescription
+        }
     }
 
     func saveRegistryURL(_ value: String) {

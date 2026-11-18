@@ -31,7 +31,8 @@ class SettingsStore(context: Context) {
 
     fun loadActiveId(): String = prefs.getString(KEY_ACTIVE, "").orEmpty()
 
-    fun loadRegistryUrl(): String = prefs.getString(KEY_REGISTRY, "").orEmpty()
+    fun loadRegistryUrl(): String =
+        prefs.getString(KEY_REGISTRY, "").orEmpty().ifBlank { RegistryDefaults.url }
 
     fun saveRegistryUrl(url: String) {
         prefs.edit().putString(KEY_REGISTRY, url.trim()).apply()

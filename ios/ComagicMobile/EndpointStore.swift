@@ -19,7 +19,10 @@ final class EndpointStore {
     }
 
     var registryURL: String {
-        get { defaults.string(forKey: "comagic.registryURL") ?? "" }
+        get {
+            let stored = defaults.string(forKey: "comagic.registryURL") ?? ""
+            return stored.isEmpty ? RegistryDefaults.url : stored
+        }
         set { defaults.set(newValue.trimmingCharacters(in: .whitespaces), forKey: "comagic.registryURL") }
     }
 

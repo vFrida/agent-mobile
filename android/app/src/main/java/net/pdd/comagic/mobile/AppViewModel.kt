@@ -35,6 +35,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
+        viewModelScope.launch { autoConnectFromRegistry() }
         viewModelScope.launch {
             AgentRepository.events.collect { event ->
                 val current = _state.value.sessionID ?: return@collect
@@ -207,6 +208,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { withContext(Dispatchers.IO) { client.switchModel(sessionID, model) } }
                 .onFailure { error -> _state.update { it.copy(error = error.message) } }
         }
+    }
+
+    private suspend fun autoConnectFromRegistry() {
+        if (_state.value.servers.any { it.ready }) return
+        val url = _state.value.registryUrl.trim()
+        if (url.isBlank()) return
+        val found = runCatching {
+            withContext(Dispatchers.IO) { RegistryClient(url).listServers() }
+        }.getOrElse { error ->
+            _state.update { it.copy(registryError = error.message ?: "注册中心请求失败") }
+            return
+        }
+        _state.update { it.copy(registryServers = found, registryError = null) }
+        val server = found.firstOrNull { it.online } ?: found.firstOrNull()
+        if (server == null) {
+            _state.update { it.copy(registryError = "注册中心暂无可用服务器") }
+            return
+        }
+        addRegistryServer(server)
     }
 
     fun saveRegistryUrl(url: String) {

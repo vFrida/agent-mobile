@@ -16,7 +16,7 @@ struct ServersView: View {
         NavigationStack {
             List {
                 Section("注册中心") {
-                    TextField("http://192.168.1.10:4908", text: Binding(
+                    TextField(RegistryDefaults.url, text: Binding(
                         get: { model.registryURL },
                         set: { model.saveRegistryURL($0) }
                     ))
