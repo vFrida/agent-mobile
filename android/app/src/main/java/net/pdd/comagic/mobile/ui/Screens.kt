@@ -43,7 +43,12 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -93,8 +98,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -103,7 +106,6 @@ import net.pdd.comagic.mobile.DirectoryPickerState
 import net.pdd.comagic.mobile.R
 import net.pdd.comagic.mobile.Endpoint
 import net.pdd.comagic.mobile.ModelRef
-import net.pdd.comagic.mobile.PairPayload
 import net.pdd.comagic.mobile.RegistryDefaults
 import net.pdd.comagic.mobile.RegistryServer
 import net.pdd.comagic.mobile.SessionRef
@@ -137,143 +139,59 @@ private val SessionPalette = listOf(
     Color(0xFF14B8A6)
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PairingScreen(
-    initial: Endpoint,
-    error: String?,
-    onCancel: (() -> Unit)?,
-    onConnect: (Endpoint) -> Unit
-) {
-    var name by rememberSaveable(initial.name) { mutableStateOf(initial.name) }
-    var baseUrl by rememberSaveable(initial.baseUrl) { mutableStateOf(initial.baseUrl) }
-    var username by rememberSaveable(initial.username) { mutableStateOf(initial.username) }
-    var password by rememberSaveable(initial.password) { mutableStateOf(initial.password) }
-    var directory by rememberSaveable(initial.directory) { mutableStateOf(initial.directory) }
-    var scanError by remember { mutableStateOf<String?>(null) }
-
-    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
-        val contents = result.contents
-        if (!contents.isNullOrBlank()) {
-            val payload = PairPayload.parse(contents)
-            if (payload == null) {
-                scanError = "二维码内容无法识别"
-            } else {
-                baseUrl = payload.baseUrl
-                username = payload.username
-                directory = payload.directory.ifBlank { directory }
-                scanError = null
-                if (payload.password.isNotBlank()) {
-                    password = payload.password
-                    onConnect(
-                        Endpoint(
-                            baseUrl = payload.baseUrl,
-                            username = payload.username,
-                            password = payload.password,
-                            directory = directory
-                        )
-                    )
-                }
-            }
-        }
-    }
-
-    fun startScan() {
-        scanner.launch(
-            ScanOptions()
-                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                .setPrompt("对准终端里的配对二维码")
-                .setBeepEnabled(false)
-                .setOrientationLocked(false)
+private fun BackButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(
+            Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "返回",
+            tint = MaterialTheme.colorScheme.onSurface
         )
     }
+}
 
-    Scaffold(topBar = { TopAppBar(title = { Text("连接 Comagic") }) }) { padding ->
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RegistryConnectScreen(
+    registryUrl: String,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit
+) {
+    Scaffold(topBar = { TopAppBar(title = { Text("Comagic") }) }) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(20.dp)
-                .imePadding()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
+            if (loading) {
+                CircularProgressIndicator()
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "在开发机上运行：comagic web --hostname 0.0.0.0 --port 4907",
-                style = MaterialTheme.typography.bodyMedium
+                if (error == null) "正在连接注册中心…" else "注册中心连接失败",
+                style = MaterialTheme.typography.titleSmall
             )
             Text(
-                "地址填 http://<开发机局域网 IP>:4907，密码用终端里打印的那一串。",
-                style = MaterialTheme.typography.bodySmall
+                registryUrl,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            OutlinedButton(onClick = { startScan() }, modifier = Modifier.fillMaxWidth()) {
-                Text("扫码配对")
+            error?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
-
-            if (scanError != null) {
-                Text(scanError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("名称（可选）") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = baseUrl,
-                onValueChange = { baseUrl = it },
-                label = { Text("服务地址") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("用户名") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("密码") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = directory,
-                onValueChange = { directory = it },
-                label = { Text("工作目录（新建会话用）") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            if (error != null) {
-                Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-
-            Button(
-                onClick = {
-                    onConnect(
-                        initial.copy(
-                            name = name.trim(),
-                            baseUrl = baseUrl,
-                            username = username.ifBlank { "comagic" },
-                            password = password,
-                            directory = directory
-                        )
-                    )
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("连接") }
-
-            if (onCancel != null) {
-                OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("返回") }
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedButton(onClick = onRetry, enabled = !loading) {
+                Text("重新发现")
             }
         }
     }
@@ -286,8 +204,6 @@ fun ServersScreen(
     active: Endpoint,
     statuses: Map<String, ServerStatus>,
     onSelect: (Endpoint) -> Unit,
-    onAdd: () -> Unit,
-    onEdit: (Endpoint) -> Unit,
     onDelete: (Endpoint) -> Unit,
     onClose: () -> Unit,
     batteryOptimized: Boolean,
@@ -297,15 +213,14 @@ fun ServersScreen(
     registryLoading: Boolean,
     registryError: String?,
     onRegistryUrlChange: (String) -> Unit,
-    onRefreshRegistry: () -> Unit,
-    onAddRegistryServer: (RegistryServer) -> Unit
+    onRefresh: () -> Unit
 ) {
     var pendingDelete by remember { mutableStateOf<Endpoint?>(null) }
 
     pendingDelete?.let { server ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("删除服务器") },
+            title = { Text("删除 agent") },
             text = { Text("确定删除「${server.label}」吗？会话仍保留在对应机器上。") },
             confirmButton = {
                 TextButton(onClick = {
@@ -322,21 +237,32 @@ fun ServersScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                navigationIcon = {
-                    TextButton(onClick = onClose) { Text("返回") }
-                },
+                navigationIcon = { BackButton(onClose) },
                 title = {
                     Column {
-                        Text("服务器")
+                        Text("agents")
                         Text(
-                            "${servers.size} 台已配对",
+                            "${servers.size} 个 agents",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
                 actions = {
-                    TextButton(onClick = onAdd) { Text("添加") }
+                    IconButton(onClick = onRefresh, enabled = !registryLoading) {
+                        if (registryLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = "刷新",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             )
         }
@@ -345,19 +271,16 @@ fun ServersScreen(
             RegistryPanel(
                 registryUrl = registryUrl,
                 servers = registryServers,
-                loading = registryLoading,
                 error = registryError,
-                onChange = onRegistryUrlChange,
-                onRefresh = onRefreshRegistry,
-                onAdd = onAddRegistryServer
+                onChange = onRegistryUrlChange
             )
 
             if (servers.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("还没有服务器", style = MaterialTheme.typography.titleMedium)
+                        Text("还没有 agents", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "添加一台运行 comagic web 的机器",
+                            "点击右上角刷新，从注册中心发现 agents",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -370,51 +293,13 @@ fun ServersScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(servers, key = { it.id }) { server ->
-                        val isActive = server.id == active.id
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-                            border = if (isActive) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.fillMaxWidth().clickable { onSelect(server) }
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        server.label,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    if (isActive) {
-                                        Text(
-                                            "当前",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    }
-                                }
-                                Text(
-                                    server.baseUrl.ifBlank { "未填写地址" },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    server.directory.ifBlank { "未设置工作目录" },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                ServerAvailability(statuses[server.id])
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    TextButton(onClick = { onEdit(server) }) { Text("编辑") }
-                                    TextButton(onClick = { pendingDelete = server }) { Text("删除") }
-                                }
-                            }
-                        }
+                        SwipeableServerCard(
+                            server = server,
+                            isActive = server.id == active.id,
+                            status = statuses[server.id],
+                            onSelect = { onSelect(server) },
+                            onDelete = { pendingDelete = server }
+                        )
                     }
                 }
             }
@@ -423,6 +308,137 @@ fun ServersScreen(
                 optimized = batteryOptimized,
                 onRequest = onRequestIgnoreBattery
             )
+        }
+    }
+}
+
+
+@Composable
+private fun SwipeableServerCard(
+    server: Endpoint,
+    isActive: Boolean,
+    status: ServerStatus?,
+    onSelect: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val actionWidth = with(density) { 152.dp.toPx() }
+    val offset = remember(server.id) { androidx.compose.animation.core.Animatable(0f) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    fun close() {
+        scope.launch { offset.animateTo(0f) }
+    }
+
+    Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))) {
+        Row(
+            modifier = Modifier.matchParentSize(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(76.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { close() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("取消", style = MaterialTheme.typography.labelMedium)
+            }
+            Box(
+                modifier = Modifier
+                    .width(76.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp))
+                    .clickable {
+                        close()
+                        onDelete()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "删除",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .offset { androidx.compose.ui.unit.IntOffset(offset.value.roundToInt(), 0) }
+                .pointerInput(server.id) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            val target = if (offset.value < -actionWidth / 2) -actionWidth else 0f
+                            scope.launch { offset.animateTo(target) }
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            scope.launch {
+                                offset.snapTo((offset.value + dragAmount).coerceIn(-actionWidth, 0f))
+                            }
+                        }
+                    )
+                }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                border = if (isActive) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { if (offset.value < -1f) close() else onSelect() }
+            ) {
+                val accent = SessionPalette[Math.floorMod(server.id.hashCode(), SessionPalette.size)]
+                Row(modifier = Modifier.padding(14.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(accent),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            server.label.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                server.label,
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isActive) {
+                                Text(
+                                    "当前",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            server.agentId,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        ServerAvailability(status)
+                    }
+                }
+            }
         }
     }
 }
@@ -463,70 +479,42 @@ private fun ServerAvailability(status: ServerStatus?) {
 private fun RegistryPanel(
     registryUrl: String,
     servers: List<RegistryServer>,
-    loading: Boolean,
     error: String?,
-    onChange: (String) -> Unit,
-    onRefresh: () -> Unit,
-    onAdd: (RegistryServer) -> Unit
+    onChange: (String) -> Unit
 ) {
-    Column(
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Text("注册中心", style = MaterialTheme.typography.titleSmall)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedTextField(
                 value = registryUrl,
                 onValueChange = onChange,
+                label = { Text("注册中心地址") },
                 placeholder = { Text(RegistryDefaults.url) },
                 singleLine = true,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.fillMaxWidth()
             )
-            Button(onClick = onRefresh, enabled = !loading) {
-                Text(if (loading) "发现中" else "发现")
-            }
-        }
-        error?.let {
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-        }
-        servers.forEach { server ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clickable { onAdd(server) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(if (server.online) SendButtonColor else SystemTextColor)
+            error?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        server.name.ifBlank { server.id },
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        server.directory.ifBlank { server.url },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Text("添加", style = MaterialTheme.typography.labelMedium, color = SendButtonColor)
+            }
+            if (servers.isNotEmpty()) {
+                Text(
+                    "已发现 ${servers.size} 个 agents",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -620,7 +608,7 @@ fun SessionListScreen(
                 },
                 actions = {
                     TextButton(onClick = onRefresh) { Text("刷新") }
-                    TextButton(onClick = onServers) { Text("服务器") }
+                    TextButton(onClick = onServers) { Text("agents") }
                 }
             )
         }
@@ -936,7 +924,7 @@ fun DirectoryPickerScreen(
         topBar = {
             TopAppBar(
                 title = { Text("选择工作目录") },
-                navigationIcon = { TextButton(onClick = onCancel) { Text("取消") } },
+                navigationIcon = { BackButton(onCancel) },
                 actions = { TextButton(onClick = onRefresh) { Text("刷新") } }
             )
         }
@@ -1287,7 +1275,7 @@ fun ChatScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 },
-                navigationIcon = { TextButton(onClick = onBack) { Text("返回") } },
+                navigationIcon = { BackButton(onBack) },
                 actions = {
                     if (state.busy) TextButton(onClick = onInterrupt) { Text("中断", color = AccentRed) }
                 }

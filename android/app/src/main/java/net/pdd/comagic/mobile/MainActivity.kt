@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,7 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import net.pdd.comagic.mobile.ui.ChatScreen
 import net.pdd.comagic.mobile.ui.DirectoryPickerScreen
 import net.pdd.comagic.mobile.ui.ComagicTheme
-import net.pdd.comagic.mobile.ui.PairingScreen
+import net.pdd.comagic.mobile.ui.RegistryConnectScreen
 import net.pdd.comagic.mobile.ui.ServersScreen
 import net.pdd.comagic.mobile.ui.SessionListScreen
 
@@ -52,8 +53,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun Root(state: UiState, viewModel: AppViewModel) {
-    var serversOpen by rememberSaveable { mutableStateOf(false) }
-    var serverEditor by remember { mutableStateOf<Endpoint?>(null) }
+    var serversOpen by rememberSaveable { mutableStateOf(true) }
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -102,6 +102,14 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
         if (serversOpen) viewModel.refreshServerStatuses()
     }
 
+    BackHandler(enabled = state.sessionID != null || state.directoryPicker != null || serversOpen) {
+        when {
+            state.sessionID != null -> viewModel.closeSession()
+            state.directoryPicker != null -> viewModel.closeDirectoryPicker()
+            serversOpen -> serversOpen = false
+        }
+    }
+
     when {
         state.sessionID != null -> ChatScreen(
             state = state,
@@ -123,22 +131,11 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             onCancel = viewModel::closeDirectoryPicker
         )
 
-        serverEditor != null -> PairingScreen(
-            initial = serverEditor!!,
-            error = state.error,
-            onCancel = { serverEditor = null },
-            onConnect = { endpoint ->
-                viewModel.saveServer(endpoint)
-                serverEditor = null
-                serversOpen = false
-            }
-        )
-
-        !state.endpoint.ready -> PairingScreen(
-            initial = Endpoint(),
-            error = state.error,
-            onCancel = null,
-            onConnect = { endpoint -> viewModel.saveServer(endpoint) }
+        !state.endpoint.ready -> RegistryConnectScreen(
+            registryUrl = state.registryUrl,
+            loading = state.registryLoading,
+            error = state.registryError,
+            onRetry = viewModel::connectRegistry
         )
 
         serversOpen -> ServersScreen(
@@ -149,8 +146,6 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
                 viewModel.selectServer(server)
                 serversOpen = false
             },
-            onAdd = { serverEditor = Endpoint() },
-            onEdit = { serverEditor = it },
             onDelete = viewModel::deleteServer,
             onClose = { serversOpen = false },
             batteryOptimized = !ignoringBatteryOptimizations,
@@ -160,11 +155,7 @@ private fun Root(state: UiState, viewModel: AppViewModel) {
             registryLoading = state.registryLoading,
             registryError = state.registryError,
             onRegistryUrlChange = viewModel::saveRegistryUrl,
-            onRefreshRegistry = viewModel::refreshRegistry,
-            onAddRegistryServer = { server ->
-                viewModel.addRegistryServer(server)
-                serversOpen = false
-            }
+            onRefresh = viewModel::refreshAgents
         )
 
         else -> SessionListScreen(

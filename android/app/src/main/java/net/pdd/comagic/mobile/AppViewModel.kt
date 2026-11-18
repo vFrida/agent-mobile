@@ -210,28 +210,42 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun autoConnectFromRegistry() {
-        if (_state.value.servers.any { it.ready }) return
+    fun connectRegistry() {
+        viewModelScope.launch { autoConnectFromRegistry(force = true) }
+    }
+
+    private suspend fun autoConnectFromRegistry(force: Boolean = false) {
+        if (!force && _state.value.servers.any { it.ready }) return
         val url = _state.value.registryUrl.trim()
         if (url.isBlank()) return
+        _state.update { it.copy(registryLoading = true, registryError = null) }
         val found = runCatching {
             withContext(Dispatchers.IO) { RegistryClient(url).listServers() }
         }.getOrElse { error ->
-            _state.update { it.copy(registryError = error.message ?: "注册中心请求失败") }
+            _state.update {
+                it.copy(registryLoading = false, registryError = error.message ?: "注册中心请求失败")
+            }
             return
         }
-        _state.update { it.copy(registryServers = found, registryError = null) }
+        _state.update { it.copy(registryServers = found, registryLoading = false, registryError = null) }
         val server = found.firstOrNull { it.online } ?: found.firstOrNull()
         if (server == null) {
             _state.update { it.copy(registryError = "注册中心暂无可用服务器") }
             return
         }
-        addRegistryServer(server)
+        val ordered = listOf(server) + found.filterNot { it.id == server.id }
+        addRegistryServers(ordered, activateFirst = !_state.value.endpoint.ready)
+        refreshServerStatuses()
     }
 
     fun saveRegistryUrl(url: String) {
         store.saveRegistryUrl(url)
         _state.update { it.copy(registryUrl = url.trim(), registryError = null) }
+    }
+
+    fun refreshAgents() {
+        refreshRegistry()
+        refreshServerStatuses()
     }
 
     fun refreshRegistry() {
@@ -244,9 +258,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { RegistryClient(url).listServers() } }
                 .onSuccess { servers ->
+                    val added = addRegistryServers(servers, activateFirst = !_state.value.endpoint.ready)
                     _state.update {
                         it.copy(registryServers = servers, registryLoading = false, registryError = null)
                     }
+                    if (added > 0) refreshServerStatuses()
                 }
                 .onFailure { error ->
                     _state.update {
@@ -257,17 +273,36 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addRegistryServer(server: RegistryServer) {
+        if (addRegistryServers(listOf(server), activateFirst = true) > 0) {
+            refreshServerStatuses()
+        }
+    }
+
+    private fun addRegistryServers(found: List<RegistryServer>, activateFirst: Boolean): Int {
         val registryUrl = _state.value.registryUrl.trim().trimEnd('/')
-        if (registryUrl.isBlank() || server.id.isBlank()) return
-        saveServer(
-            Endpoint(
+        if (registryUrl.isBlank()) return 0
+        var added = 0
+        found.forEach { server ->
+            if (server.id.isBlank()) return@forEach
+            val baseUrl = "$registryUrl/s/${server.id}"
+            if (_state.value.servers.any { it.baseUrl.equals(baseUrl, ignoreCase = true) }) return@forEach
+            val endpoint = Endpoint(
                 name = server.name.ifBlank { server.id },
-                baseUrl = "$registryUrl/s/${server.id}",
+                baseUrl = baseUrl,
                 username = Credentials.username,
                 password = Credentials.password,
                 directory = server.directory
             )
-        )
+            if (activateFirst && added == 0) {
+                saveServer(endpoint)
+            } else {
+                val (servers, _) = upsertServer(_state.value.servers, endpoint)
+                store.saveServers(servers, _state.value.endpoint.id)
+                _state.update { it.copy(servers = servers) }
+            }
+            added++
+        }
+        return added
     }
 
     fun openSession(session: SessionRef) {

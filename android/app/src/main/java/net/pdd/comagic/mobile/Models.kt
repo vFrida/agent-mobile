@@ -189,6 +189,13 @@ data class Endpoint(
     val ready: Boolean
         get() = baseUrl.isNotBlank() && password.isNotBlank()
 
+    val agentId: String
+        get() = baseUrl.trimEnd('/')
+            .takeIf { it.contains("/s/") }
+            ?.substringAfterLast("/s/")
+            ?.takeIf { it.isNotBlank() }
+            ?: id
+
     val label: String
         get() = name.ifBlank {
             baseUrl.trim()
