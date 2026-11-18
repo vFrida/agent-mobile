@@ -35,12 +35,12 @@ struct RootView: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.current != nil {
+        if !model.loggedIn {
+            LoginView()
+        } else if model.current != nil {
             ChatView()
         } else if model.directoryPicker != nil {
             DirectoryPickerView()
-        } else if !model.endpoint.ready {
-            RegistryConnectView()
         } else if showingAgents {
             ServersView(onClose: { showingAgents = false })
         } else {

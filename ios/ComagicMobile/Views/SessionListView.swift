@@ -89,23 +89,19 @@ struct SessionListView: View {
         .navigationTitle("会话")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Text(model.endpoint.label)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Palette.textWeak)
-                    .lineLimit(1)
+                Button {
+                    onAgents()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .accessibilityLabel("返回 agents")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     Task { await model.refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    onAgents()
-                } label: {
-                    Image(systemName: "server.rack")
                 }
             }
             ToolbarItem(placement: .bottomBar) {

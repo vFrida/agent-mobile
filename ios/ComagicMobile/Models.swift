@@ -188,6 +188,12 @@ enum RegistryDefaults {
     static let url = "http://192.168.100.136:4908"
 }
 
+struct RegistryAccount: Codable, Equatable {
+    var baseURL: String = RegistryDefaults.url
+    var username: String = Credentials.username
+    var password: String = Credentials.password
+}
+
 struct Endpoint: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var name: String = ""

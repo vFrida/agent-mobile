@@ -9,20 +9,6 @@ struct ServersView: View {
 
     var body: some View {
         List {
-            Section {
-                TextField("注册中心地址", text: Binding(
-                    get: { model.registryURL },
-                    set: { model.saveRegistryURL($0) }
-                ))
-                .keyboardType(.URL)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-
-                if let error = model.registryError {
-                    Text(error).font(.caption).foregroundStyle(Palette.critical)
-                }
-            }
-
             if !model.registryServers.isEmpty {
                 Text("已发现 \(model.registryServers.count) 个 agents")
                     .font(.system(size: 12))
@@ -70,6 +56,14 @@ struct ServersView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
+                    model.logout()
+                } label: {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                }
+                .accessibilityLabel("退出登录")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
                     Task {
                         await model.refreshRegistry()
                         await model.refreshServerStatuses()
@@ -83,9 +77,6 @@ struct ServersView: View {
                 }
                 .disabled(model.registryLoading)
                 .accessibilityLabel("刷新")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("会话") { onClose() }
             }
         }
         .task {

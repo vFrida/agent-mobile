@@ -18,10 +18,51 @@ final class EndpointStore {
         defaults.string(forKey: activeKey) ?? ""
     }
 
+    private let registryListKey = "comagic.registryURLs"
+    private let registryAccountKey = "comagic.registryAccount"
+
+    var registryAccount: RegistryAccount? {
+        get {
+            guard let raw = Keychain.read(registryAccountKey),
+                  let data = raw.data(using: .utf8)
+            else { return nil }
+            return try? JSONDecoder().decode(RegistryAccount.self, from: data)
+        }
+        set {
+            guard let value = newValue,
+                  let data = try? JSONEncoder().encode(value),
+                  let raw = String(data: data, encoding: .utf8)
+            else {
+                Keychain.write(registryAccountKey, value: "")
+                return
+            }
+            Keychain.write(registryAccountKey, value: raw)
+        }
+    }
+
+    var registryURLs: [String] {
+        get {
+            let stored = defaults.stringArray(forKey: registryListKey) ?? []
+            var seen = Set<String>()
+            let cleaned = stored
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty && seen.insert($0).inserted }
+            return cleaned.isEmpty ? [RegistryDefaults.url] : cleaned
+        }
+        set {
+            var seen = Set<String>()
+            let cleaned = newValue
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty && seen.insert($0).inserted }
+            defaults.set(cleaned, forKey: registryListKey)
+        }
+    }
+
     var registryURL: String {
         get {
+            let urls = registryURLs
             let stored = defaults.string(forKey: "comagic.registryURL") ?? ""
-            return stored.isEmpty ? RegistryDefaults.url : stored
+            return urls.contains(stored) ? stored : urls[0]
         }
         set { defaults.set(newValue.trimmingCharacters(in: .whitespaces), forKey: "comagic.registryURL") }
     }
@@ -70,6 +111,11 @@ final class EndpointStore {
 
     func activate(_ endpoint: Endpoint) {
         defaults.set(endpoint.id, forKey: activeKey)
+    }
+
+    func clearServers() {
+        Keychain.write(serversKey, value: "")
+        defaults.set("", forKey: activeKey)
     }
 
     func remove(_ endpoint: Endpoint) {

@@ -18,10 +18,10 @@
 		77151724454520EB65EBA40F /* SpeechInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFEBE585936C7A1BF243D960 /* SpeechInput.swift */; };
 		87884A48CD76D0E49EB9D877 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 180D64AE271F160833445973 /* App.swift */; };
 		A07767BF828224C4112A1415 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEEBF8AF84E5DC20ADB13D99 /* ChatView.swift */; };
+		AA11BB22CC33DD44EE55FF66 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11223344556677889900AABB /* LoginView.swift */; };
 		A30C064D088B7983648BC9E9 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8927AD00064BC47283102410 /* AppModel.swift */; };
 		B7C067CAE2C89E00A248F33B /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67AF78DE69B732F0C1151AAD /* Palette.swift */; };
 		CEB57CAA27B84A9708591931 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1BCB8B8340B34B01DB8A29DA /* Assets.xcassets */; };
-		E7BE4490D50C75B8CD706628 /* RegistryConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB688F10CA15A4C05F7F8E95 /* RegistryConnectView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,7 +52,7 @@
 		D5D55E6F271B409F3207D02B /* ComagicMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ComagicMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D68FA9E557619B42941F1A48 /* ComagicClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComagicClientTests.swift; sourceTree = "<group>"; };
 		F64FE5102E091E9A39A46268 /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListView.swift; sourceTree = "<group>"; };
-		FB688F10CA15A4C05F7F8E95 /* RegistryConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistryConnectView.swift; sourceTree = "<group>"; };
+		11223344556677889900AABB /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -70,7 +70,7 @@
 			children = (
 				CEEBF8AF84E5DC20ADB13D99 /* ChatView.swift */,
 				63D637DDA384887BF83B8E42 /* DirectoryPickerView.swift */,
-				FB688F10CA15A4C05F7F8E95 /* RegistryConnectView.swift */,
+				11223344556677889900AABB /* LoginView.swift */,
 				6F3A5B7C9D1E3F5A7B9C1D3E /* ServersView.swift */,
 				F64FE5102E091E9A39A46268 /* SessionListView.swift */,
 			);
@@ -211,11 +211,11 @@
 				A07767BF828224C4112A1415 /* ChatView.swift in Sources */,
 				3DA3A1A6D3FEC78DB2B820DB /* ComagicClient.swift in Sources */,
 				3D8118483C4ED6492AEA13EC /* DirectoryPickerView.swift in Sources */,
+				AA11BB22CC33DD44EE55FF66 /* LoginView.swift in Sources */,
 				5E2F4A6B8C1D3E5F7A9B0C2D /* ServersView.swift in Sources */,
 				7A1B2C3D4E5F60718293A4B5 /* HistoryCache.swift in Sources */,
 				0912866283942DBEE9A4370E /* EndpointStore.swift in Sources */,
 				4AD4B401F7344C1C2F22C85D /* Models.swift in Sources */,
-				E7BE4490D50C75B8CD706628 /* RegistryConnectView.swift in Sources */,
 				B7C067CAE2C89E00A248F33B /* Palette.swift in Sources */,
 				6A078CBCC5BD48339D2445BB /* SessionListView.swift in Sources */,
 				77151724454520EB65EBA40F /* SpeechInput.swift in Sources */,

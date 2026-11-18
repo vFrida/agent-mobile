@@ -22,7 +22,11 @@ final class AppModel: ObservableObject {
     @Published var oldestMessageID: String?
     @Published var historyLimit = 20
     @Published var loadingOlder = false
+    @Published var account: RegistryAccount?
+    @Published var loginLoading = false
+    @Published var loginError: String?
     @Published var registryURL: String
+    @Published var registryURLs: [String] = []
     @Published var registryServers: [RegistryServer] = []
     @Published var registryLoading = false
     @Published var registryError: String?
@@ -45,7 +49,9 @@ final class AppModel: ObservableObject {
         servers = EndpointStore.shared.servers
         endpoint = EndpointStore.shared.endpoint
         registryURL = EndpointStore.shared.registryURL
-        if !servers.contains(where: { $0.ready }) {
+        registryURLs = EndpointStore.shared.registryURLs
+        account = EndpointStore.shared.registryAccount
+        if account != nil && !servers.contains(where: { $0.ready }) {
             Task { await autoConnectFromRegistry() }
         }
     }
@@ -62,7 +68,7 @@ final class AppModel: ObservableObject {
         registryError = nil
         defer { registryLoading = false }
         do {
-            let found = try await RegistryClient(baseURL: url).listServers()
+            let found = try await registryClient.listServers()
             registryServers = found
             guard let server = found.first(where: { $0.online == true }) ?? found.first else {
                 registryError = "注册中心暂无可用服务器"
@@ -82,6 +88,143 @@ final class AppModel: ObservableObject {
         registryError = nil
     }
 
+    func logout() {
+        EndpointStore.shared.registryAccount = nil
+        EndpointStore.shared.clearServers()
+        account = nil
+        loginError = nil
+        close()
+        endpoint = Endpoint()
+        servers = []
+        registryServers = []
+        registryError = nil
+        sessions = []
+        agents = []
+        models = []
+        error = nil
+    }
+
+    func selectRegistryAddress(_ url: String) {
+        guard registryURLs.contains(url) else { return }
+        EndpointStore.shared.registryURL = url
+        registryURL = url
+        loginError = nil
+    }
+
+    func addRegistryAddress(_ input: String) {
+        let url = Self.normalizeRegistryURL(input)
+        guard !url.isEmpty else { return }
+        var urls = registryURLs
+        if !urls.contains(url) { urls.append(url) }
+        EndpointStore.shared.registryURLs = urls
+        EndpointStore.shared.registryURL = url
+        registryURLs = EndpointStore.shared.registryURLs
+        registryURL = url
+        loginError = nil
+    }
+
+    func removeRegistryAddress(_ url: String) {
+        var urls = registryURLs.filter { $0 != url }
+        guard !urls.isEmpty else { return }
+        EndpointStore.shared.registryURLs = urls
+        urls = EndpointStore.shared.registryURLs
+        registryURLs = urls
+        if registryURL == url, let first = urls.first {
+            registryURL = first
+            EndpointStore.shared.registryURL = first
+        }
+    }
+
+    func login(baseURL: String, username: String, password: String) async {
+        let url = Self.normalizeRegistryURL(baseURL)
+        guard !url.isEmpty else {
+            loginError = "请填写注册中心地址"
+            return
+        }
+        let trimmedUser = username.trimmingCharacters(in: .whitespaces)
+        let user = trimmedUser.isEmpty ? Credentials.username : trimmedUser
+        let pass = password.isEmpty ? Credentials.password : password
+        loginLoading = true
+        loginError = nil
+        defer { loginLoading = false }
+        do {
+            let found = try await RegistryClient(baseURL: url, username: user, password: pass).listServers()
+            let account = RegistryAccount(baseURL: url, username: user, password: pass)
+            EndpointStore.shared.registryAccount = account
+            var urls = registryURLs
+            if !urls.contains(url) { urls.append(url) }
+            EndpointStore.shared.registryURLs = urls
+            EndpointStore.shared.registryURL = url
+            self.account = account
+            registryURLs = EndpointStore.shared.registryURLs
+            registryURL = url
+            registryServers = found
+            registryError = nil
+            await addRegistryServers(found, activateFirst: !endpoint.ready)
+            await refreshServerStatuses()
+        } catch {
+            loginError = error.localizedDescription
+        }
+    }
+
+    private static func normalizeRegistryURL(_ input: String) -> String {
+        var value = input.trimmingCharacters(in: .whitespaces)
+        guard !value.isEmpty else { return "" }
+        if !value.hasPrefix("http://") && !value.hasPrefix("https://") {
+            value = "http://" + value
+        }
+        if let range = value.range(of: "://") {
+            let host = String(value[range.upperBound...])
+            if !host.contains(":") && !host.contains("/") {
+                value += ":4908"
+            }
+        }
+        while value.hasSuffix("/") { value.removeLast() }
+        return value
+    }
+
+    func selectRegistryURL(_ url: String) async {
+        guard registryURLs.contains(url) else { return }
+        EndpointStore.shared.registryURL = url
+        registryURL = url
+        registryServers = []
+        registryError = nil
+        await refreshRegistry()
+        await refreshServerStatuses()
+    }
+
+    func addRegistryURL(_ url: String) async {
+        let trimmed = Self.normalizeRegistryURL(url)
+        guard !trimmed.isEmpty else { return }
+        var urls = registryURLs
+        if !urls.contains(trimmed) { urls.append(trimmed) }
+        EndpointStore.shared.registryURLs = urls
+        EndpointStore.shared.registryURL = trimmed
+        registryURLs = EndpointStore.shared.registryURLs
+        registryURL = trimmed
+        registryServers = []
+        registryError = nil
+        await refreshRegistry()
+        await refreshServerStatuses()
+    }
+
+    func removeRegistryURL(_ url: String) async {
+        var urls = registryURLs
+        urls.removeAll { $0 == url }
+        guard !urls.isEmpty else { return }
+        let wasActive = registryURL == url
+        EndpointStore.shared.registryURLs = urls
+        registryURLs = EndpointStore.shared.registryURLs
+        if wasActive {
+            registryURL = registryURLs[0]
+            EndpointStore.shared.registryURL = registryURL
+            registryServers = []
+            registryError = nil
+            await refreshRegistry()
+            await refreshServerStatuses()
+        }
+    }
+
     func refreshRegistry() async {
         let url = registryURL.trimmingCharacters(in: .whitespaces)
         guard !url.isEmpty else {
@@ -91,7 +234,7 @@ final class AppModel: ObservableObject {
         registryLoading = true
         registryError = nil
         do {
-            let found = try await RegistryClient(baseURL: url).listServers()
+            let found = try await registryClient.listServers()
             registryServers = found
             let added = await addRegistryServers(found, activateFirst: !endpoint.ready)
             if added > 0 { await refreshServerStatuses() }
@@ -130,6 +273,16 @@ final class AppModel: ObservableObject {
             added += 1
         }
         return added
+    }
+
+    var loggedIn: Bool { account != nil }
+
+    private var registryClient: RegistryClient {
+        RegistryClient(
+            baseURL: registryURL,
+            username: account?.username ?? Credentials.username,
+            password: account?.password ?? Credentials.password
+        )
     }
 
     private var client: ComagicClient? {
