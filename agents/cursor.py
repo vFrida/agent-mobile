@@ -47,6 +47,9 @@ STATE_PATH = Path(
     )
 ).expanduser()
 RUN_FORCE = os.environ.get("CURSOR_RUN_FORCE", "1") != "0"
+# 长时间无输出视为卡死，主动结束并通知客户端，避免会话一直 busy（409）。
+RUN_IDLE_TIMEOUT = float(os.environ.get("CURSOR_RUN_IDLE_TIMEOUT", "180"))
+RUN_MAX_SECONDS = float(os.environ.get("CURSOR_RUN_TIMEOUT", "1800"))
 DEFAULT_PORT = 4909
 
 AGENTS = [
@@ -255,6 +258,8 @@ def list_models() -> list[dict]:
         if not match:
             continue
         model_id, name = match.group(1), match.group(2)
+        # "id - Display Name (current, default)" 标记了 CLI 当前默认模型
+        is_default = bool(re.search(r"\((?:[^)]*\b(?:current|default)\b[^)]*)\)", name))
         name = re.sub(r"\s*\(.*?\)\s*$", "", name).strip() or model_id
         models.append(
             {
@@ -263,9 +268,40 @@ def list_models() -> list[dict]:
                 "name": name,
                 "status": "active",
                 "enabled": True,
+                "default": is_default,
             }
         )
     return models
+
+
+def pick_default_agent() -> str:
+    """默认会话类型：第一个可见的 primary 模式。"""
+    for agent in AGENTS:
+        if agent.get("mode") == "primary" and not agent.get("hidden"):
+            return str(agent.get("id"))
+    return "agent"
+
+
+def pick_default_model(models: list[dict]) -> dict | None:
+    """CLI 标记的当前默认模型优先，其次 deepseek，最后第一个可用模型。"""
+    if not models:
+        return None
+    preferred = (
+        next((item for item in models if item.get("default")), None)
+        or next(
+            (
+                item
+                for item in models
+                if any(
+                    "deepseek" in str(item.get(key) or "").lower()
+                    for key in ("id", "providerID", "name")
+                )
+            ),
+            None,
+        )
+        or models[0]
+    )
+    return {"id": preferred.get("id"), "providerID": preferred.get("providerID")}
 
 
 def session_ref(ext: str, meta: dict) -> dict:
@@ -435,13 +471,52 @@ class RunManager:
         err_thread.start()
 
         assert proc.stdout is not None
+        lines: queue.Queue[str | None] = queue.Queue()
+        started = time.time()
+        last_output = started
+
+        def read_stdout() -> None:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                lines.put(line)
+            lines.put(None)
+
+        threading.Thread(target=read_stdout, daemon=True).start()
+
         while True:
-            line = proc.stdout.readline()
-            if not line:
+            try:
+                line = lines.get(timeout=1)
+            except queue.Empty:
+                idle = time.time() - last_output
+                total = time.time() - started
+                if idle > RUN_IDLE_TIMEOUT or total > RUN_MAX_SECONDS:
+                    reason = (
+                        f"cursor agent 无响应（{int(idle)} 秒无输出），已终止"
+                        if idle > RUN_IDLE_TIMEOUT
+                        else f"cursor agent 超时（{int(total)} 秒），已终止"
+                    )
+                    log(f"{ext}: {reason}")
+                    try:
+                        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                    except Exception:
+                        try:
+                            proc.kill()
+                        except Exception:
+                            pass
+                    self.hub.publish("session.error", {"sessionID": ext, "message": reason})
+                    finalize()
+                    return
                 if proc.poll() is not None:
-                    break
-                time.sleep(0.05)
-                continue
+                    # 进程已退出但队列尚未收到 EOF，再等一次
+                    try:
+                        line = lines.get(timeout=1)
+                    except queue.Empty:
+                        break
+                else:
+                    continue
+            if line is None:
+                break
+            last_output = time.time()
             line = line.strip()
             if not line:
                 continue
@@ -952,6 +1027,15 @@ def start_registry_reporter(
     token = base64.b64encode(f"{registry_username}:{registry_password}".encode()).decode()
     state: dict[str, str | None] = {"id": None}
 
+    def defaults() -> dict:
+        """本 agent 的默认会话类型与默认模型，注册时上报给注册中心。"""
+        try:
+            models = list_models()
+        except Exception as error:
+            log(f"registry: 获取模型列表失败: {error}")
+            models = []
+        return {"defaultAgent": pick_default_agent(), "defaultModel": pick_default_model(models)}
+
     def call(method: str, path: str, payload: dict | None = None) -> tuple[int, bytes]:
         request = urllib.request.Request(
             base + path,
@@ -977,6 +1061,7 @@ def start_registry_reporter(
                 "password": password,
                 "directory": directory,
                 "version": VERSION,
+                **defaults(),
             },
         )
         state["id"] = json.loads(raw).get("id")

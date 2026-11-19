@@ -35,10 +35,10 @@ curl -u comagic:YFl4cVaQ8smozi4I http://<本机IP>:4908/api/agents
 
 | 接口 | 说明 |
 | --- | --- |
-| `POST /api/register` | bridge 注册 `{name,type,url,username,password,directory,version}`，`type` 为 `comagic` 或 `cursor` |
+| `POST /api/register` | bridge 注册 `{name,type,url,username,password,directory,version,defaultAgent,defaultModel}`，`type` 为 `comagic` 或 `cursor`；`defaultAgent`/`defaultModel` 为该 agent 的默认会话类型与默认模型（`{id,providerID}`） |
 | `POST /api/agents/{id}/heartbeat` | 心跳，超过 60s 标记 offline |
 | `DELETE /api/agents/{id}` | 注销（bridge 退出时自动调用） |
-| `GET /api/agents` | 已注册服务器列表（含 online 状态） |
+| `GET /api/agents` | 已注册服务器列表（含 online 状态、`defaultAgent`、`defaultModel`） |
 | `GET /global/health` | 健康检查 |
 
 bridge 相关参数：`--registry`（`COMAGIC_REGISTRY`）、`--registry-username`、`--registry-password`、`--name`。

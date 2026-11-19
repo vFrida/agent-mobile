@@ -91,6 +91,8 @@ class Registry:
             "directory": entry.get("directory") or "",
             "type": entry.get("type") or "",
             "version": entry.get("version") or "",
+            "defaultAgent": entry.get("defaultAgent") or "",
+            "defaultModel": entry.get("defaultModel"),
             "lastSeen": entry.get("lastSeen") or 0,
             "online": now_ms() - int(entry.get("lastSeen") or 0) < OFFLINE_AFTER_MS,
         }

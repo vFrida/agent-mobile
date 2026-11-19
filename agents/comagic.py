@@ -407,6 +407,32 @@ def list_cli_sessions(limit: int = 100) -> list[dict]:
         return []
 
 
+def pick_default_agent() -> str:
+    """默认会话类型：第一个可见的 primary 模式。"""
+    for agent in AGENTS:
+        if agent.get("mode") == "primary" and not agent.get("hidden"):
+            return str(agent.get("id"))
+    return "build"
+
+
+def pick_default_model(models: list[dict]) -> dict | None:
+    """与 App 端 pickDefaultModel 保持一致：优先 deepseek，其次第一个可用模型。"""
+    if not models:
+        return None
+    preferred = next(
+        (
+            item
+            for item in models
+            if any(
+                "deepseek" in str(item.get(key) or "").lower()
+                for key in ("id", "providerID", "name")
+            )
+        ),
+        models[0],
+    )
+    return {"id": preferred.get("id"), "providerID": preferred.get("providerID")}
+
+
 def list_models() -> list[dict]:
     output = run_cli(["models", "--verbose"], timeout=60, extra_env={"OPENCODE_CLIENT": "acp"})
     decoder = json.JSONDecoder()
@@ -951,6 +977,15 @@ def start_registry_reporter(
     token = base64.b64encode(f"{registry_username}:{registry_password}".encode()).decode()
     state: dict[str, str | None] = {"id": None}
 
+    def defaults() -> dict:
+        """本 agent 的默认会话类型与默认模型，注册时上报给注册中心。"""
+        try:
+            models = list_models()
+        except Exception as error:
+            log(f"registry: 获取模型列表失败: {error}")
+            models = []
+        return {"defaultAgent": pick_default_agent(), "defaultModel": pick_default_model(models)}
+
     def call(method: str, path: str, payload: dict | None = None) -> tuple[int, bytes]:
         request = urllib.request.Request(
             base + path,
@@ -976,6 +1011,7 @@ def start_registry_reporter(
                 "password": password,
                 "directory": directory,
                 "version": VERSION,
+                **defaults(),
             },
         )
         state["id"] = json.loads(raw).get("id")
