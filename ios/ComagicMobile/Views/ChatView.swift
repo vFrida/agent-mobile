@@ -124,6 +124,17 @@ struct ChatView: View {
                     .padding(.horizontal, 4)
                 }
 
+                if voiceMode, !speech.transcript.isEmpty {
+                    Text(speech.transcript)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.textStrong)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10))
+                        .padding(.horizontal, 4)
+                }
+
                 HStack(alignment: .bottom, spacing: 8) {
                     Button {
                         voiceMode.toggle()

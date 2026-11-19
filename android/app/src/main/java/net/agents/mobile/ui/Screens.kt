@@ -1524,6 +1524,21 @@ fun ChatScreen(
                     .background(InputBarColor)
                     .padding(top = 8.dp)
             ) {
+                if (voiceMode && draft.isNotBlank()) {
+                    Text(
+                        draft,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp)
+                            .padding(bottom = 6.dp)
+                            .background(AssistantBubbleColor, RoundedCornerShape(10.dp))
+                            .padding(8.dp)
+                    )
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
