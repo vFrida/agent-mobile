@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Comagic Mobile bridge for Cursor Agent CLI.
 
-Exposes the same HTTP/SSE API as agents/comagic_agent.py, backed by
+Exposes the same HTTP/SSE API as agents/comagic.py, backed by
 `agent -p --output-format stream-json` instead of `comagic run`.
 
 Requires the Cursor CLI (`agent` / `cursor-agent`) on PATH, and either

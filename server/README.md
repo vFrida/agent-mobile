@@ -3,7 +3,7 @@
 一个只依赖 Python 3 标准库的本地服务：把手机 App 的 HTTP/SSE 请求转成 `comagic run --format json` 子进程，不再依赖 `comagic web`。
 
 ```
-Android / iOS  ──HTTP+SSE──▶  agents/comagic_agent.py  ──spawn──▶  comagic run --format json
+Android / iOS  ──HTTP+SSE──▶  agents/comagic.py  ──spawn──▶  comagic run --format json
                                       │
                                       └── state.json（手机侧会话 ID ↔ comagic 会话 ID）
 ```
@@ -22,7 +22,7 @@ App ──HTTP+SSE──▶ 注册中心 /s/<id>/... ──转发──▶ bridg
 python3 server/server.py --port 4908
 
 # 2) bridge 注册到它
-python3 agents/comagic_agent.py --port 4907 --registry http://<本机IP>:4908
+python3 agents/comagic.py --port 4907 --registry http://<本机IP>:4908
 
 # 3) 查看已注册的服务器
 curl -u comagic:YFl4cVaQ8smozi4I http://<本机IP>:4908/api/agents
@@ -48,7 +48,7 @@ bridge 相关参数：`--registry`（`COMAGIC_REGISTRY`）、`--registry-usernam
 ## 启动
 
 ```bash
-python3 agents/comagic_agent.py --directory /Users/txc --port 4907
+python3 agents/comagic.py --directory /Users/txc --port 4907
 ```
 
 首次启动会打印地址、用户名 `comagic` 和密码，并调用 `scripts/pair-qr.sh` 生成配对二维码。手机 App 扫码或手填即可。密码默认固定为 `YFl4cVaQ8smozi4I`。

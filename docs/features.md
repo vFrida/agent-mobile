@@ -14,7 +14,7 @@ Android / iOS App
         │  /api/agents 发现
         │  /s/<agent_id>/... 反向代理（含 SSE）
         ▼
-   Agent agents/comagic_agent.py (4907) 或 agents/cursor_agent.py (4909)
+   Agent agents/comagic.py (4907) 或 agents/cursor.py (4909)
         │
         ▼
    comagic run --format json  /  agent -p --output-format stream-json
@@ -40,14 +40,14 @@ python3 server/server.py --port 4908
 
 ```bash
 # Comagic
-python3 agents/comagic_agent.py \
+python3 agents/comagic.py \
   --port 4907 \
   --directory ~ \
   --registry http://<注册中心IP>:4908 \
   --no-qr
 
 # Cursor（需 PATH 上有 agent，并已登录）
-python3 agents/cursor_agent.py \
+python3 agents/cursor.py \
   --port 4909 \
   --directory ~ \
   --registry http://<注册中心IP>:4908 \
@@ -171,7 +171,7 @@ environment=HOME="/home/user",COMAGIC_REGISTRY="http://192.168.100.136:4908",PAT
 
 ## 6. 配置项
 
-### Agent（`agents/comagic_agent.py` / `agents/cursor_agent.py`）
+### Agent（`agents/comagic.py` / `agents/cursor.py`）
 
 | 参数 | 环境变量（comagic / cursor） | 默认 |
 | --- | --- | --- |
