@@ -22,13 +22,22 @@ android {
         versionName = "1.0.$gitCommitCount"
     }
 
+    signingConfigs {
+        // 复用 mosu app 的签名证书（原 /Users/txc/mosu，证书即 ~/.android/debug.keystore）
+        create("mosu") {
+            storeFile = rootProject.file("keystore/mosu-debug.keystore")
+            storePassword = (project.findProperty("MOSU_STORE_PASSWORD") as String?) ?: "android"
+            keyAlias = (project.findProperty("MOSU_KEY_ALIAS") as String?) ?: "androiddebugkey"
+            keyPassword = (project.findProperty("MOSU_KEY_PASSWORD") as String?) ?: "android"
+        }
+    }
+
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("mosu")
         }
         release {
-            // 与 mosu 相同：release 复用本机 debug 签名证书
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("mosu")
         }
     }
 
