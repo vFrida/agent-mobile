@@ -6,7 +6,7 @@ PROJECT="ComagicMobile.xcodeproj"
 SCHEME="ComagicMobile"
 DD="DerivedData"
 APP="$DD/Build/Products/Debug-iphonesimulator/ComagicMobile.app"
-BUNDLE_ID="net.comagic.mobile"
+BUNDLE_ID="net.agents.mobile"
 DEST="${DEST:-platform=iOS Simulator,name=iPhone 18 Pro}"
 ACTION="${1:-build}"
 
