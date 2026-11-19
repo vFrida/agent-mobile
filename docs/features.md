@@ -14,14 +14,14 @@ Android / iOS App
         │  /api/agents 发现
         │  /s/<agent_id>/... 反向代理（含 SSE）
         ▼
-   Agent agents/comagic_agent.py (4907, 每台开发机一个)
+   Agent agents/comagic_agent.py (4907) 或 agents/cursor_agent.py (4909)
         │
         ▼
-   comagic run --format json
+   comagic run --format json  /  agent -p --output-format stream-json
 ```
 
 - **注册中心**：保存各 agent 的名称、类型、版本、在线状态，并做 HTTP/SSE 反向代理。
-- **Agent**：把 App 的请求转换成 `comagic` 子进程调用，管理会话状态。
+- **Agent**：把 App 的请求转换成 CLI 子进程调用，管理会话状态；`type` 为 `comagic` 或 `cursor`。
 - **App**：只与注册中心通信，不直连各台开发机。
 
 ---
@@ -39,11 +39,20 @@ python3 server/server.py --port 4908
 ### 2.2 在开发机启动 agent 并注册
 
 ```bash
+# Comagic
 python3 agents/comagic_agent.py \
   --port 4907 \
   --directory ~ \
   --registry http://<注册中心IP>:4908 \
   --no-qr
+
+# Cursor（需 PATH 上有 agent，并已登录）
+python3 agents/cursor_agent.py \
+  --port 4909 \
+  --directory ~ \
+  --registry http://<注册中心IP>:4908 \
+  --no-qr
+# 或: ./scripts/serve-cursor.sh
 ```
 
 注册后可查看在线 agents：
@@ -70,6 +79,10 @@ command=/usr/bin/python3 -u /path/to/comagic-mobile/server/server.py --host 0.0.
 [program:comagic-agent]
 command=/path/to/comagic-mobile/scripts/serve.sh
 environment=HOME="/home/user",COMAGIC_REGISTRY="http://192.168.100.136:4908"
+
+[program:cursor-agent]
+command=/path/to/comagic-mobile/scripts/serve-cursor.sh
+environment=HOME="/home/user",COMAGIC_REGISTRY="http://192.168.100.136:4908",PATH="/home/user/.local/bin:%(ENV_PATH)s"
 ```
 
 ---
@@ -92,7 +105,7 @@ environment=HOME="/home/user",COMAGIC_REGISTRY="http://192.168.100.136:4908"
 - 左滑 agent 显示「取消 / 删除」。
   - 删除只影响本机展示，并写入隐藏列表，刷新后不会再次出现。
   - 设置页提供「恢复已删除的 agents」。
-- 只显示注册中心返回的**在线** agents，且类型为 `comagic`（或未标注类型）。
+- 只显示注册中心返回的**在线** agents，且类型为 `comagic` / `cursor`（或未标注类型）。
 
 ### 3.3 设置页
 
@@ -158,20 +171,22 @@ environment=HOME="/home/user",COMAGIC_REGISTRY="http://192.168.100.136:4908"
 
 ## 6. 配置项
 
-### Agent（`agents/comagic_agent.py`）
+### Agent（`agents/comagic_agent.py` / `agents/cursor_agent.py`）
 
-| 参数 | 环境变量 | 默认 |
+| 参数 | 环境变量（comagic / cursor） | 默认 |
 | --- | --- | --- |
-| `--host` | `COMAGIC_MOBILE_HOST` | `0.0.0.0` |
-| `--port` | `COMAGIC_MOBILE_PORT` | `4907` |
-| `--username` | `COMAGIC_MOBILE_USERNAME` | `comagic` |
-| `--password` | `COMAGIC_MOBILE_PASSWORD` | `YFl4cVaQ8smozi4I` |
-| `--directory` | `COMAGIC_MOBILE_DIR` | 当前目录 |
-| `--name` | `COMAGIC_MOBILE_NAME` | 主机名 |
-| `--registry` | `COMAGIC_REGISTRY` | 无（不注册） |
+| `--host` | `COMAGIC_MOBILE_HOST` / `CURSOR_MOBILE_HOST` | `0.0.0.0` |
+| `--port` | `COMAGIC_MOBILE_PORT` / `CURSOR_MOBILE_PORT` | `4907` / `4909` |
+| `--username` | `COMAGIC_MOBILE_USERNAME` / `CURSOR_MOBILE_USERNAME` | `comagic` |
+| `--password` | `COMAGIC_MOBILE_PASSWORD` / `CURSOR_MOBILE_PASSWORD` | `YFl4cVaQ8smozi4I` |
+| `--directory` | `COMAGIC_MOBILE_DIR` / `CURSOR_MOBILE_DIR` | 当前目录 |
+| `--name` | `COMAGIC_MOBILE_NAME` / `CURSOR_MOBILE_NAME` | 主机名 / `cursor@主机名` |
+| `--registry` | `COMAGIC_REGISTRY`（两者共用） | 无（不注册） |
 | `--registry-username` | `COMAGIC_REGISTRY_USERNAME` | `comagic` |
 | `--registry-password` | `COMAGIC_REGISTRY_PASSWORD` | 同上 |
 | `--no-qr` | – | 不打印配对二维码（常驻运行用） |
+| – | `CURSOR_AGENT_BIN` | `agent` / `cursor-agent` |
+| – | `CURSOR_RUN_FORCE=0` | 默认自动 `--force`；设为 `0` 关闭 |
 
 ### App
 

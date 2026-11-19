@@ -8,9 +8,10 @@ Comagic CLI 的移动客户端：连接开发机上的服务，在手机上发�
 comagic-mobile/
 ├── android/        Android 客户端（Kotlin + Compose，Gradle）
 ├── ios/            iOS 客户端（SwiftUI，XcodeGen）
-├── server/         自建 bridge 服务（Python，基于 comagic run --format json）
-├── scripts/        开发机侧配对工具（二维码生成）
-└── docs/           图标等共享素材
+├── agents/         bridge：comagic_agent.py / cursor_agent.py
+├── server/         注册中心（多机发现与反向代理）
+├── scripts/        配对、开机自启（serve.sh / serve-cursor.sh）
+└── docs/           功能说明与图标
 ```
 
 ## 开机自启（macOS）
@@ -36,10 +37,14 @@ launchctl bootout gui/$(id -u)/com.comagic.mobile-registry`。
 ### 方式一：自建 bridge 服务（推荐，不依赖 comagic web）
 
 ```bash
+# Comagic CLI
 python3 agents/comagic_agent.py --directory /Users/txc --port 4907
+
+# 或 Cursor Agent CLI（需已 agent login / CURSOR_API_KEY）
+python3 agents/cursor_agent.py --directory /Users/txc --port 4909
 ```
 
-首次启动会打印地址、用户名 `comagic` 和密码，并生成配对二维码。密码默认固定为 `YFl4cVaQ8smozi4I`（可用 `--password` 或 `COMAGIC_MOBILE_PASSWORD` 覆盖）。详见 [server/README.md](server/README.md)。
+首次启动会打印地址、用户名 `comagic` 和密码，并生成配对二维码。密码默认固定为 `YFl4cVaQ8smozi4I`（可用 `--password` 或 `COMAGIC_MOBILE_PASSWORD` / `CURSOR_MOBILE_PASSWORD` 覆盖）。详见 [server/README.md](server/README.md)。
 
 ### 方式二：直接用 comagic web
 
