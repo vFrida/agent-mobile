@@ -30,6 +30,7 @@ tail -f ~/Library/Logs/comagic-mobile/server.log
 - 服务端口 `4907`，监听 `0.0.0.0`，默认目录 `$HOME`，可用 `COMAGIC_MOBILE_PORT` / `COMAGIC_MOBILE_HOST` / `COMAGIC_MOBILE_DIR` 覆盖。
 - 崩溃会自动重启（`KeepAlive`）；停止：`launchctl bootout gui/$(id -u)/com.comagic.mobile-server
 launchctl bootout gui/$(id -u)/com.comagic.mobile-registry`。
+- Cursor agent 同样可自启：`~/Library/LaunchAgents/com.comagic.mobile-cursor-agent.plist`（`scripts/serve-cursor.sh`，端口 4909）。
 - 这是登录后启动；如需开机未登录也启动，需要把 plist 放到 `/Library/LaunchDaemons` 并用 root 加载。
 
 ## 配对
