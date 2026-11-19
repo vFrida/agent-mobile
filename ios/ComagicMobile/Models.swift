@@ -149,6 +149,8 @@ struct RegistryServer: Codable, Identifiable, Hashable {
     var url: String?
     var directory: String?
     var version: String?
+    var defaultAgent: String?
+    var defaultModel: ModelRef?
     var lastSeen: Int64?
     var online: Bool?
 }

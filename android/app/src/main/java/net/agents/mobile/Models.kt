@@ -123,6 +123,8 @@ data class RegistryServer(
     val url: String = "",
     val directory: String = "",
     val version: String = "",
+    val defaultAgent: String = "",
+    val defaultModel: ModelRef? = null,
     val lastSeen: Long = 0,
     val online: Boolean = false
 )
@@ -327,4 +329,13 @@ data class UiState(
     val registryLoading: Boolean = false,
     val registryError: String? = null,
     val streamState: StreamState = StreamState.IDLE
-)
+) {
+    val registryDefaults: RegistryServer?
+        get() = registryServers.firstOrNull { it.id.isNotBlank() && it.id == endpoint.agentId }
+
+    val defaultAgent: String
+        get() = registryDefaults?.defaultAgent.orEmpty()
+
+    val defaultModel: ModelRef?
+        get() = registryDefaults?.defaultModel?.takeIf { it.id.isNotBlank() }
+}

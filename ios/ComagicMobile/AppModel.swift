@@ -571,6 +571,15 @@ final class AppModel: ObservableObject {
         await newSession(directory: path)
     }
 
+    private var registryDefaults: RegistryServer? {
+        registryServers.first { !$0.id.isEmpty && $0.id == endpoint.agentID }
+    }
+
+    private var defaultAgent: String {
+        let agent = registryDefaults?.defaultAgent?.trimmingCharacters(in: .whitespaces) ?? ""
+        return agent.isEmpty ? "build" : agent
+    }
+
     private func defaultModel() -> ModelRef? {
         let deepseek = models.first { model in
             [model.id, model.providerID ?? "", model.name ?? ""].contains {
@@ -582,7 +591,7 @@ final class AppModel: ObservableObject {
 
     func newSession(directory: String) async {
         guard let client else { return }
-        guard let model = defaultModel() ?? sessions.compactMap({ $0.model }).first else {
+        guard let model = registryDefaults?.defaultModel ?? defaultModel() ?? sessions.compactMap({ $0.model }).first else {
             error = "没有可用模型：先打开一个已有会话"
             return
         }
@@ -594,7 +603,9 @@ final class AppModel: ObservableObject {
         loading = true
         defer { loading = false }
         do {
-            let session = try await client.createSession(directory: directory, model: model, agent: current?.agent ?? "build")
+            let savedAgent = current?.agent ?? ""
+            let agent = savedAgent.isEmpty ? defaultAgent : savedAgent
+            let session = try await client.createSession(directory: directory, model: model, agent: agent)
             await open(session)
             await refresh()
         } catch {

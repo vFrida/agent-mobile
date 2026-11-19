@@ -1692,7 +1692,7 @@ fun ChatScreen(
                     SelectorChip(
                         prefix = "模式",
                         prefixColor = AccentBlue,
-                        label = state.sessionAgent.ifBlank { "build" },
+                        label = state.sessionAgent.ifBlank { state.defaultAgent.ifBlank { "build" } },
                         options = state.agents.map { it.id to it.id },
                         onSelect = onSelectAgent
                     )
@@ -1775,7 +1775,7 @@ private fun ChatAction(
 }
 
 private fun modelLabel(state: UiState): String {
-    val current = state.sessionModel ?: return "模型"
+    val current = state.sessionModel ?: state.defaultModel ?: return "模型"
     val known = state.models.firstOrNull {
         it.id == current.id && (it.providerID == current.providerID || it.providerID.isBlank())
     }

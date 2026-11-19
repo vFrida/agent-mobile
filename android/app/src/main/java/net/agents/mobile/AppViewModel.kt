@@ -734,13 +734,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun newSession(directory: String) {
         val client = client() ?: return
         val current = _state.value
-        val model = pickDefaultModel(current.models, current.sessionModel)
+        val defaults = current.registryDefaults
+        val model = defaults?.defaultModel
+            ?: pickDefaultModel(current.models, current.sessionModel)
             ?: current.sessions.firstNotNullOfOrNull { it.model }
         if (model == null) {
             _state.update { it.copy(error = "没有可用模型：先打开一个已有会话再新建") }
             return
         }
-        val agent = current.sessionAgent.takeIf { it.isNotBlank() } ?: "build"
+        val agent = defaults?.defaultAgent?.takeIf { it.isNotBlank() }
+            ?: current.sessionAgent.takeIf { it.isNotBlank() }
+            ?: "build"
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { client.createSession(directory, model, agent) } }
