@@ -379,7 +379,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun List<RegistryServer>.comagicOnly(): List<RegistryServer> =
-        filter { it.online && (it.type.isBlank() || it.type.equals("comagic", ignoreCase = true)) }
+        filter {
+            it.online && (
+                it.type.isBlank() ||
+                    it.type.equals("comagic", ignoreCase = true) ||
+                    it.type.equals("cursor", ignoreCase = true)
+                )
+        }
 
     private fun normalizeRegistryUrl(input: String): String {
         var value = input.trim()

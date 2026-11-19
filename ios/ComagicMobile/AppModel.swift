@@ -72,7 +72,7 @@ final class AppModel: ObservableObject {
         registryError = nil
         defer { registryLoading = false }
         do {
-            let found = try await registryClient.listServers().filter { $0.online == true && ($0.type == nil || $0.type == "comagic") }
+            let found = try await registryClient.listServers().filter { Self.isSupportedAgent($0) }
             registryServers = found
             guard let server = found.first(where: { $0.online == true }) ?? found.first else {
                 registryError = "注册中心暂无可用服务器"
@@ -166,7 +166,7 @@ final class AppModel: ObservableObject {
         do {
             let found = try await RegistryClient(baseURL: url, username: user, password: pass)
                 .listServers()
-                .filter { $0.online == true && ($0.type == nil || $0.type == "comagic") }
+                .filter { Self.isSupportedAgent($0) }
             let account = RegistryAccount(baseURL: url, username: user, password: pass)
             EndpointStore.shared.registryAccount = account
             var urls = registryURLs
@@ -183,6 +183,12 @@ final class AppModel: ObservableObject {
         } catch {
             loginError = error.localizedDescription
         }
+    }
+
+    private static func isSupportedAgent(_ server: RegistryServer) -> Bool {
+        guard server.online == true else { return false }
+        let type = (server.type ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return type.isEmpty || type == "comagic" || type == "cursor"
     }
 
     private static func normalizeRegistryURL(_ input: String) -> String {
@@ -252,7 +258,7 @@ final class AppModel: ObservableObject {
         registryLoading = true
         registryError = nil
         do {
-            let found = try await registryClient.listServers().filter { $0.online == true && ($0.type == nil || $0.type == "comagic") }
+            let found = try await registryClient.listServers().filter { Self.isSupportedAgent($0) }
             registryServers = found
             let added = await addRegistryServers(found, activateFirst: !endpoint.ready)
             if added > 0 { await refreshServerStatuses() }
