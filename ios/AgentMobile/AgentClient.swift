@@ -60,7 +60,13 @@ struct AgentEvent {
         if let permission = payload["permission"] as? [String: Any], let title = permission["title"] as? String {
             return title
         }
-        return payload["title"] as? String ?? payload["permission"] as? String
+        if let title = payload["title"] as? String, !title.isEmpty { return title }
+        if let message = payload["message"] as? String, !message.isEmpty { return message }
+        if let action = payload["action"] as? String, !action.isEmpty {
+            let resources = payload["resources"] as? [String] ?? []
+            return resources.isEmpty ? action : "\(action): \(resources.joined(separator: ", "))"
+        }
+        return payload["permission"] as? String
     }
 }
 
@@ -288,6 +294,16 @@ struct AgentClient {
 
     func interrupt(_ sessionID: String) async throws {
         _ = try await send(jsonRequest("/session/\(sessionID)/abort", method: "POST", body: [:]))
+    }
+
+    func replyPermission(_ sessionID: String, requestID: String, reply: String) async throws {
+        _ = try await send(
+            jsonRequest(
+                "/api/session/\(sessionID)/permission/\(requestID)/reply",
+                method: "POST",
+                body: ["reply": reply]
+            )
+        )
     }
 
     func events() -> AsyncStream<AgentEvent> {

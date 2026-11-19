@@ -246,9 +246,11 @@ struct ChatView: View {
         }
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .alert("需要确认", isPresented: .constant(model.pendingPermission != nil)) {
-            Button("知道了") { model.pendingPermission = nil }
+            Button("允许一次") { Task { await model.replyPermission("once") } }
+            Button("始终允许") { Task { await model.replyPermission("always") } }
+            Button("拒绝", role: .destructive) { Task { await model.replyPermission("reject") } }
         } message: {
-            Text(model.pendingPermission ?? "")
+            Text(model.pendingPermission?.title ?? "")
         }
         .onChange(of: speech.transcript) { _, text in
             if !text.isEmpty { draft = text }

@@ -1,6 +1,11 @@
 import Foundation
 import UIKit
 
+struct PermissionAsk: Identifiable, Equatable {
+    let id: String
+    let title: String
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var endpoint: Endpoint
@@ -15,7 +20,7 @@ final class AppModel: ObservableObject {
     @Published var lines: [ChatLine] = []
     @Published var busy = false
     @Published var reconnecting = false
-    @Published var pendingPermission: String?
+    @Published var pendingPermission: PermissionAsk?
     @Published var currentDirectory = ""
     @Published var directoryPicker: DirectoryPickerState?
     @Published var historyHasMore = false
@@ -747,6 +752,16 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func replyPermission(_ reply: String) async {
+        guard let client, let session = current, let ask = pendingPermission else { return }
+        pendingPermission = nil
+        do {
+            try await client.replyPermission(session.id, requestID: ask.id, reply: reply)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
     #if DEBUG
     func applyDebugArguments() async {
         let args = ProcessInfo.processInfo.arguments
@@ -819,7 +834,13 @@ final class AppModel: ObservableObject {
         case "session.execution.succeeded", "session.execution.failed":
             busy = false
         case "permission.asked":
-            pendingPermission = event.requestTitle ?? "需要确认工具调用"
+            guard let requestID = event.requestID, !requestID.isEmpty else { break }
+            pendingPermission = PermissionAsk(
+                id: requestID,
+                title: event.requestTitle ?? "需要确认工具调用"
+            )
+        case "permission.replied":
+            pendingPermission = nil
         default:
             break
         }

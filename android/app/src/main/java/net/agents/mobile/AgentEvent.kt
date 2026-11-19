@@ -1,6 +1,7 @@
 package net.agents.mobile
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -48,7 +49,14 @@ data class AgentEvent(
 
     val requestTitle: String?
         get() = payload.nested("permission")?.firstString("title")
-            ?: payload.firstString("title", "permission")
+            ?: payload.firstString("title", "message")
+            ?: payload.firstString("action")?.let { action ->
+                val resources = (payload["resources"] as? JsonArray)
+                    ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                    .orEmpty()
+                if (resources.isEmpty()) action else "$action: ${resources.joinToString(", ")}"
+            }
+            ?: payload.firstString("permission")
 
     companion object {
         private val json = Json { ignoreUnknownKeys = true }

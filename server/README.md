@@ -106,7 +106,7 @@ Common flags / environment variables:
 ## Limitations
 
 - Each message starts a CLI subprocess, so cold starts are slower than a long-running `comagic web`; only one running request per session is allowed.
-- `comagic run` has no interactive permission prompt: permissions come from the comagic configuration. Enable `COMAGIC_RUN_AUTO=1` if you need automatic approval.
+- `comagic run` has no interactive permission prompt: permissions come from the comagic configuration. Enable `COMAGIC_RUN_AUTO=1` if you need automatic approval. To approve or reject permission requests from the phone, connect the app directly to a `comagic web` server instead (mode 2 in the root README).
 - The mode list is the built-in `build` / `plan`; the model list is parsed from `comagic models --verbose`.
 - Session titles, agent and model are backfilled from `comagic export` after the first run completes.
 - Web-only features such as message editing, rollback and fork (other than attachments) are not implemented.

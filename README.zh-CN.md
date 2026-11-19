@@ -52,6 +52,8 @@ python3 agents/cursor.py --directory /Users/txc --port 4909
 
 首次启动会打印地址、用户名 `comagic` 和密码，并生成配对二维码。密码默认固定为 `YFl4cVaQ8smozi4I`（可用 `--password` 或 `COMAGIC_MOBILE_PASSWORD` / `CURSOR_MOBILE_PASSWORD` 覆盖）。详见 [server/README.md](server/README.md)。
 
+> 手机上审批权限需要 `comagic web` 后端（方式二）。run 模式的 bridge 会自动拒绝权限请求；如需自动批准，可开启 `COMAGIC_RUN_AUTO=1`。
+
 ### 方式二：直接用 `comagic web`
 
 ```bash

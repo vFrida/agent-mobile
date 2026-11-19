@@ -1396,7 +1396,10 @@ fun ChatScreen(
                 TextButton(onClick = { onPermission("once") }) { Text("允许一次") }
             },
             dismissButton = {
-                TextButton(onClick = { onPermission("reject") }) { Text("拒绝") }
+                Row {
+                    TextButton(onClick = { onPermission("always") }) { Text("始终允许") }
+                    TextButton(onClick = { onPermission("reject") }) { Text("拒绝") }
+                }
             }
         )
     }

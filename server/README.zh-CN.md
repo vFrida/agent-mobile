@@ -106,7 +106,7 @@ python3 agents/comagic.py --directory /Users/txc --port 4907
 ## 限制
 
 - 每条消息启动一个 CLI 子进程，冷启动比常驻的 `comagic web` 慢；同一会话同时只允许一个运行中的请求。
-- `comagic run` 没有可交互的权限确认通道：权限由 comagic 的配置决定；需要自动批准时自行开启 `COMAGIC_RUN_AUTO=1`。
+- `comagic run` 没有可交互的权限确认通道：权限由 comagic 的配置决定；需要自动批准时自行开启 `COMAGIC_RUN_AUTO=1`。如果要在手机上审批权限，请让 App 直连 `comagic web`（根目录 README 的方式二）。
 - 模式列表是内置的 `build` / `plan`；模型列表通过 `comagic models --verbose` 解析。
 - 会话标题、agent/model 在首次运行结束后从 `comagic export` 回填。
 - 没有实现附件以外的消息编辑、回滚、fork 等 Web 端功能。

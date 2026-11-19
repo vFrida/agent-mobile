@@ -52,6 +52,8 @@ python3 agents/cursor.py --directory /Users/txc --port 4909
 
 On first start it prints the address, the username `comagic` and the password, then renders a pairing QR code. The password defaults to the fixed value `YFl4cVaQ8smozi4I` (override with `--password` or `COMAGIC_MOBILE_PASSWORD` / `CURSOR_MOBILE_PASSWORD`). See [server/README.md](server/README.md) for details.
 
+> Permission approval from the phone needs the `comagic web` backend (option 2). The run-based bridge auto-rejects permission requests; enable `COMAGIC_RUN_AUTO=1` if you want it to approve automatically.
+
 ### Option 2: use `comagic web` directly
 
 ```bash

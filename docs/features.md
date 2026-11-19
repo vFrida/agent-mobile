@@ -122,7 +122,7 @@ environment=HOME="/home/user",COMAGIC_REGISTRY="http://192.168.100.136:4908",PAT
 - New session: browse the target machine's directories and pick a working directory.
 - The chat screen supports:
   - streamed output and tool-call display
-  - command approval (allow once / deny)
+  - command approval (allow once / always / reject)
   - interrupting a run
   - switching agent mode (build / plan, etc.)
   - switching model
