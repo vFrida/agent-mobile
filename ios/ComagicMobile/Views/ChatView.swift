@@ -328,8 +328,20 @@ struct ChatView: View {
         }
     }
 
+    private var agentTypeLabel: String {
+        let raw = model.endpoint.agentType?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return raw.isEmpty ? "comagic" : raw
+    }
+
     private var infoBar: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
+            Text(agentTypeLabel)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Palette.accentBlue)
+                .lineLimit(1)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Palette.accentBlue.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
             Text("目录").font(.caption2).foregroundStyle(.secondary)
             Text(model.currentDirectory.isEmpty ? "未设置" : model.currentDirectory)
                 .font(.system(size: 12))

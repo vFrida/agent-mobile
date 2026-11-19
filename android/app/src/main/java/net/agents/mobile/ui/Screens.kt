@@ -1428,7 +1428,10 @@ fun ChatScreen(
                 .padding(padding)
                 .background(Brush.verticalGradient(listOf(Color(0xFFF3F6FA), Color(0xFFEBEFF4))))
         ) {
-            SessionInfoBar(directory = state.sessionDirectory)
+            SessionInfoBar(
+                directory = state.sessionDirectory,
+                agentType = state.endpoint.agentType
+            )
 
             val scope = rememberCoroutineScope()
             val atBottom by remember { derivedStateOf { !listState.canScrollForward } }
@@ -2082,15 +2085,25 @@ private fun UserAvatar() {
 }
 
 @Composable
-private fun SessionInfoBar(directory: String) {
+private fun SessionInfoBar(directory: String, agentType: String) {
+    val typeLabel = agentType.ifBlank { "comagic" }
     Surface(color = Color(0xFFF5F9FF), modifier = Modifier.fillMaxWidth()) {
-        Text(
-            directory.ifBlank { "未设置工作目录" },
-            style = MaterialTheme.typography.bodySmall,
-            color = AccentBlue,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            sessionBadge(typeLabel, AccentBlue)
+            Text(
+                directory.ifBlank { "未设置工作目录" },
+                style = MaterialTheme.typography.bodySmall,
+                color = AccentBlue,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
