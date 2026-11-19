@@ -28,7 +28,7 @@ object AgentRepository {
 
     fun start(endpoint: Endpoint, sessionID: String) {
         stop()
-        val client = ComagicClient(endpoint)
+        val client = AgentClient(endpoint)
         job = scope.launch {
             var backoff = 1_000L
             var dropped = false

@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct ComagicApp: App {
+struct AgentApp: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {

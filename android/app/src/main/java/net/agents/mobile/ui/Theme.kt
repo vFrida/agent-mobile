@@ -5,7 +5,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val ComagicColors = lightColorScheme(
+private val AgentColors = lightColorScheme(
     primary = Color(0xFF171717),
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFF3F3F3),
@@ -27,8 +27,8 @@ private val ComagicColors = lightColorScheme(
 )
 
 @Composable
-fun ComagicTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = ComagicColors, content = content)
+fun AgentTheme(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = AgentColors, content = content)
 }
 
 val SuccessColor = Color(0xFF16A34A)

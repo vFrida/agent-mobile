@@ -28,7 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.agents.mobile.ui.ChatScreen
 import net.agents.mobile.ui.DirectoryPickerScreen
-import net.agents.mobile.ui.ComagicTheme
+import net.agents.mobile.ui.AgentTheme
 import net.agents.mobile.ui.ServersScreen
 import net.agents.mobile.ui.LoginScreen
 import net.agents.mobile.ui.SessionListScreen
@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            ComagicTheme {
+            AgentTheme {
                 val viewModel: AppViewModel = viewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 Root(state, viewModel)

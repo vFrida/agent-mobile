@@ -64,7 +64,7 @@ struct AgentEvent {
     }
 }
 
-struct ComagicClient {
+struct AgentClient {
     let endpoint: Endpoint
 
     private var base: String {

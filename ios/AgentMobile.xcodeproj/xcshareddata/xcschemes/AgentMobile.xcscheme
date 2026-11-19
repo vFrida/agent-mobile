@@ -15,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "4C92869874141041FBFF397F"
-               BuildableName = "ComagicMobile.app"
-               BlueprintName = "ComagicMobile"
-               ReferencedContainer = "container:ComagicMobile.xcodeproj">
+               BlueprintIdentifier = "7CA18BEE9A6321ADEBC518DD"
+               BuildableName = "AgentMobile.app"
+               BlueprintName = "AgentMobile"
+               ReferencedContainer = "container:AgentMobile.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -29,10 +29,10 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "6B011AA96A5DC307364A9A9F"
-               BuildableName = "ComagicMobileTests.xctest"
-               BlueprintName = "ComagicMobileTests"
-               ReferencedContainer = "container:ComagicMobile.xcodeproj">
+               BlueprintIdentifier = "8D8840E138EB866AE48C216E"
+               BuildableName = "AgentMobileTests.xctest"
+               BlueprintName = "AgentMobileTests"
+               ReferencedContainer = "container:AgentMobile.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -46,10 +46,10 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "4C92869874141041FBFF397F"
-            BuildableName = "ComagicMobile.app"
-            BlueprintName = "ComagicMobile"
-            ReferencedContainer = "container:ComagicMobile.xcodeproj">
+            BlueprintIdentifier = "7CA18BEE9A6321ADEBC518DD"
+            BuildableName = "AgentMobile.app"
+            BlueprintName = "AgentMobile"
+            ReferencedContainer = "container:AgentMobile.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -58,10 +58,10 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "6B011AA96A5DC307364A9A9F"
-               BuildableName = "ComagicMobileTests.xctest"
-               BlueprintName = "ComagicMobileTests"
-               ReferencedContainer = "container:ComagicMobile.xcodeproj">
+               BlueprintIdentifier = "8D8840E138EB866AE48C216E"
+               BuildableName = "AgentMobileTests.xctest"
+               BlueprintName = "AgentMobileTests"
+               ReferencedContainer = "container:AgentMobile.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -82,10 +82,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "4C92869874141041FBFF397F"
-            BuildableName = "ComagicMobile.app"
-            BlueprintName = "ComagicMobile"
-            ReferencedContainer = "container:ComagicMobile.xcodeproj">
+            BlueprintIdentifier = "7CA18BEE9A6321ADEBC518DD"
+            BuildableName = "AgentMobile.app"
+            BlueprintName = "AgentMobile"
+            ReferencedContainer = "container:AgentMobile.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
@@ -101,10 +101,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "4C92869874141041FBFF397F"
-            BuildableName = "ComagicMobile.app"
-            BlueprintName = "ComagicMobile"
-            ReferencedContainer = "container:ComagicMobile.xcodeproj">
+            BlueprintIdentifier = "7CA18BEE9A6321ADEBC518DD"
+            BuildableName = "AgentMobile.app"
+            BlueprintName = "AgentMobile"
+            ReferencedContainer = "container:AgentMobile.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

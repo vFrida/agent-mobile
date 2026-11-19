@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "comagic-mobile"
+rootProject.name = "agent-mobile"
 include(":app")

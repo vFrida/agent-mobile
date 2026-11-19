@@ -65,9 +65,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun client(): ComagicClient? {
+    private fun client(): AgentClient? {
         val endpoint = _state.value.endpoint
-        return if (endpoint.ready) ComagicClient(endpoint) else null
+        return if (endpoint.ready) AgentClient(endpoint) else null
     }
 
     fun saveServer(endpoint: Endpoint) {
@@ -161,7 +161,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (!server.ready) {
             return ServerStatus(checking = false, error = "未填写地址或密码")
         }
-        return runCatching { ComagicClient(server).health() }.fold(
+        return runCatching { AgentClient(server).health() }.fold(
             onSuccess = { health ->
                 ServerStatus(checking = false, online = health.healthy, version = health.version)
             },
@@ -238,7 +238,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.IO) {
                 RegistryClient(url, account?.username ?: Credentials.username, account?.password ?: Credentials.password)
                     .listServers()
-                    .comagicOnly()
+                    .supportedOnly()
             }
         }.getOrElse { error ->
             _state.update {
@@ -327,7 +327,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withContext(Dispatchers.IO) { RegistryClient(url, user, pass).listServers() }
             }.onSuccess { raw ->
-                val servers = raw.comagicOnly()
+                val servers = raw.supportedOnly()
                 val account = RegistryAccount(baseUrl = url, username = user, password = pass)
                 store.saveRegistryAccount(account)
                 val urls = (_state.value.registryUrls + url).distinct()
@@ -378,7 +378,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun List<RegistryServer>.comagicOnly(): List<RegistryServer> =
+    private fun List<RegistryServer>.supportedOnly(): List<RegistryServer> =
         filter {
             it.online && (
                 it.type.isBlank() ||
@@ -462,7 +462,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
                 .onSuccess { raw ->
-                    val servers = raw.comagicOnly()
+                    val servers = raw.supportedOnly()
                     val added = addRegistryServers(servers, activateFirst = !_state.value.endpoint.ready)
                     _state.update {
                         it.copy(registryServers = servers, registryLoading = false, registryError = null)

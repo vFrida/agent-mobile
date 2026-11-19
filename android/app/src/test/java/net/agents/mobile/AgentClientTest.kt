@@ -3,14 +3,14 @@ package net.agents.mobile
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class ComagicClientTest {
+class AgentClientTest {
 
     @Test
     fun healthAndSessions() {
         val baseUrl = System.getenv("COMAGIC_TEST_URL") ?: return
         val password = System.getenv("COMAGIC_TEST_PASSWORD") ?: return
 
-        val client = ComagicClient(Endpoint(baseUrl = baseUrl, password = password))
+        val client = AgentClient(Endpoint(baseUrl = baseUrl, password = password))
 
         assertTrue(client.health().healthy)
         val sessions = client.listSessions()
@@ -24,7 +24,7 @@ class ComagicClientTest {
         val baseUrl = System.getenv("COMAGIC_TEST_URL") ?: return
         val password = System.getenv("COMAGIC_TEST_PASSWORD") ?: return
 
-        val client = ComagicClient(Endpoint(baseUrl = baseUrl, password = password))
+        val client = AgentClient(Endpoint(baseUrl = baseUrl, password = password))
         val model = client.listSessions().firstNotNullOfOrNull { it.model } ?: return
         val session = client.createSession("/tmp", model)
 

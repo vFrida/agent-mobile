@@ -2,10 +2,10 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-PROJECT="ComagicMobile.xcodeproj"
-SCHEME="ComagicMobile"
+PROJECT="AgentMobile.xcodeproj"
+SCHEME="AgentMobile"
 DD="DerivedData"
-APP="$DD/Build/Products/Debug-iphonesimulator/ComagicMobile.app"
+APP="$DD/Build/Products/Debug-iphonesimulator/AgentMobile.app"
 BUNDLE_ID="net.agents.mobile"
 DEST="${DEST:-platform=iOS Simulator,name=iPhone 18 Pro}"
 ACTION="${1:-build}"

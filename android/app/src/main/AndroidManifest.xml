@@ -25,7 +25,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ComagicMobile"
+        android:theme="@style/Theme.AgentMobile"
         android:usesCleartextTraffic="true">
 
         <activity

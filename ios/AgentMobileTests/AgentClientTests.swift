@@ -1,7 +1,7 @@
 import XCTest
-@testable import ComagicMobile
+@testable import AgentMobile
 
-final class ComagicClientTests: XCTestCase {
+final class AgentClientTests: XCTestCase {
 
     private func env() -> (String, String)? {
         let path = "/tmp/comagic_test_env.json"
@@ -14,7 +14,7 @@ final class ComagicClientTests: XCTestCase {
 
     func testHealthAndSessions() async throws {
         guard let (url, pass) = env() else { throw XCTSkip("缺少 /tmp/comagic_test_env.json") }
-        let client = ComagicClient(endpoint: Endpoint(baseURL: url, password: pass))
+        let client = AgentClient(endpoint: Endpoint(baseURL: url, password: pass))
         let healthy = try await client.health()
         XCTAssertTrue(healthy)
         let sessions = try await client.listSessions()

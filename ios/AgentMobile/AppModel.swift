@@ -329,8 +329,8 @@ final class AppModel: ObservableObject {
         close()
     }
 
-    private var client: ComagicClient? {
-        endpoint.ready ? ComagicClient(endpoint: endpoint) : nil
+    private var client: AgentClient? {
+        endpoint.ready ? AgentClient(endpoint: endpoint) : nil
     }
 
     func connect(_ new: Endpoint) {
@@ -390,7 +390,7 @@ final class AppModel: ObservableObject {
     private static func probe(_ server: Endpoint) async -> ServerAvailability {
         guard server.ready else { return .offline }
         do {
-            let health = try await ComagicClient(endpoint: server).healthInfo()
+            let health = try await AgentClient(endpoint: server).healthInfo()
             return health.healthy == true ? .online(version: health.version ?? "") : .offline
         } catch {
             return .offline

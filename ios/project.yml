@@ -1,4 +1,4 @@
-name: ComagicMobile
+name: AgentMobile
 options:
   bundleIdPrefix: net.agents
   deploymentTarget:
@@ -6,13 +6,13 @@ options:
   createIntermediateGroups: true
 
 targets:
-  ComagicMobile:
+  AgentMobile:
     type: application
     platform: iOS
     sources:
-      - path: ComagicMobile
+      - path: AgentMobile
     info:
-      path: ComagicMobile/Info.plist
+      path: AgentMobile/Info.plist
       properties:
         CFBundleDisplayName: Agents
         UILaunchScreen: {}
@@ -36,27 +36,27 @@ targets:
         SWIFT_VERSION: "5.9"
         ENABLE_USER_SCRIPT_SANDBOXING: NO
 
-  ComagicMobileTests:
+  AgentMobileTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: ComagicMobileTests
+      - path: AgentMobileTests
     dependencies:
-      - target: ComagicMobile
+      - target: AgentMobile
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.agents.mobile.tests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  ComagicMobile:
+  AgentMobile:
     build:
       targets:
-        ComagicMobile: all
-        ComagicMobileTests: [test]
+        AgentMobile: all
+        AgentMobileTests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - ComagicMobileTests
+        - AgentMobileTests

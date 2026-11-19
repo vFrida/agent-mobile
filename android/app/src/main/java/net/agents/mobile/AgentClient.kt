@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
 
 class SessionBusyException(message: String) : IOException(message)
 
-class ComagicClient(endpoint: Endpoint) {
+class AgentClient(endpoint: Endpoint) {
 
     private val base = endpoint.baseUrl.trimEnd('/')
     private val authorization = Credentials.basic(endpoint.username, endpoint.password)
