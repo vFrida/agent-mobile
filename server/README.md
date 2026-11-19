@@ -1,117 +1,119 @@
-# Comagic Mobile Bridge Server
+# Agent Mobile Bridge Server
 
-一个只依赖 Python 3 标准库的本地服务：把手机 App 的 HTTP/SSE 请求转成 `comagic run --format json` 子进程，不再依赖 `comagic web`。
+**English** | [简体中文](README.zh-CN.md)
+
+A local service that depends only on the Python 3 standard library: it turns the app's HTTP/SSE requests into `comagic run --format json` subprocesses, so `comagic web` is not required.
 
 ```
 Android / iOS  ──HTTP+SSE──▶  agents/comagic.py  ──spawn──▶  comagic run --format json
                                       │
-                                      └── state.json（手机侧会话 ID ↔ comagic 会话 ID）
+                                      └── state.json (mobile session ID ↔ comagic session ID)
 ```
 
-## 注册中心（多台开发机）
+## Registry (multiple development machines)
 
-`server/server.py` 是一个注册中心 + 反向代理：bridge 启动时向它注册，App 只连它，通过 `/s/<server_id>/...` 转发到对应机器。
+`server/server.py` is a registry plus reverse proxy. The bridge registers with it on startup; the app connects only to the registry, which forwards `/s/<server_id>/...` to the corresponding machine.
 
 ```
-bridge（4907）──启动注册/心跳──▶  注册中心（4908）
-App ──HTTP+SSE──▶ 注册中心 /s/<id>/... ──转发──▶ bridge
+bridge (4907) ──register/heartbeat──▶ registry (4908)
+app ──HTTP+SSE──▶ registry /s/<id>/... ──forward──▶ bridge
 ```
 
 ```bash
-# 1) 起注册中心
+# 1) Start the registry
 python3 server/server.py --port 4908
 
-# 2) bridge 注册到它
-python3 agents/comagic.py --port 4907 --registry http://<本机IP>:4908
+# 2) Register a bridge
+python3 agents/comagic.py --port 4907 --registry http://<machine-ip>:4908
 
-# 3) 查看已注册的服务器
-curl -u comagic:YFl4cVaQ8smozi4I http://<本机IP>:4908/api/agents
+# 3) List registered servers
+curl -u comagic:YFl4cVaQ8smozi4I http://<machine-ip>:4908/api/agents
 
-# 4) App 里把服务器地址填成代理地址，账号密码用注册中心的
-#    http://<本机IP>:4908/s/<server_id>
+# 4) In the app, use the proxy address as the server, with the registry credentials
+#    http://<machine-ip>:4908/s/<server_id>
 ```
 
-注册中心接口（均需 Basic Auth，默认 `comagic` / `YFl4cVaQ8smozi4I`）：
+Registry endpoints (all require Basic Auth; default `comagic` / `YFl4cVaQ8smozi4I`):
 
-| 接口 | 说明 |
+| Endpoint | Description |
 | --- | --- |
-| `POST /api/register` | bridge 注册 `{name,type,url,username,password,directory,version,defaultAgent,defaultModel}`，`type` 为 `comagic` 或 `cursor`；`defaultAgent`/`defaultModel` 为该 agent 的默认会话类型与默认模型（`{id,providerID}`） |
-| `POST /api/agents/{id}/heartbeat` | 心跳，超过 60s 标记 offline |
-| `DELETE /api/agents/{id}` | 注销（bridge 退出时自动调用） |
-| `GET /api/agents` | 已注册服务器列表（含 online 状态、`defaultAgent`、`defaultModel`） |
-| `GET /global/health` | 健康检查 |
+| `POST /api/register` | Register a bridge with `{name,type,url,username,password,directory,version,defaultAgent,defaultModel}`; `type` is `comagic` or `cursor`; `defaultAgent` / `defaultModel` are the agent's default session type and default model (`{id,providerID}`) |
+| `POST /api/agents/{id}/heartbeat` | Heartbeat; marked offline after 60s |
+| `DELETE /api/agents/{id}` | Deregister (called automatically when the bridge exits) |
+| `GET /api/agents` | Registered servers (with online status, `defaultAgent`, `defaultModel`) |
+| `GET /global/health` | Health check |
 
-bridge 相关参数：`--registry`（`COMAGIC_REGISTRY`）、`--registry-username`、`--registry-password`、`--name`。
+Bridge flags: `--registry` (`COMAGIC_REGISTRY`), `--registry-username`, `--registry-password`, `--name`.
 
-> 注册中心会保存各 bridge 的 Basic Auth 凭据用于代理，只应在可信局域网运行。
+> The registry stores each bridge's Basic Auth credentials in order to proxy requests; run it only on a trusted LAN.
 
-## 启动
+## Startup
 
 ```bash
 python3 agents/comagic.py --directory /Users/txc --port 4907
 ```
 
-首次启动会打印地址、用户名 `comagic` 和密码，并调用 `scripts/pair-qr.sh` 生成配对二维码。手机 App 扫码或手填即可。密码默认固定为 `YFl4cVaQ8smozi4I`。
+On first start it prints the address, the username `comagic` and the password, then calls `scripts/pair-qr.sh` to render a pairing QR code. Scan it with the app or enter the details manually. The password defaults to the fixed value `YFl4cVaQ8smozi4I`.
 
-二维码渲染按顺序尝试 `swift`（macOS）、`python3 -c "import qrcode"`、`qrencode`；Linux 上若都没有，先 `pip3 install qrcode` 即可。
+QR rendering tries `swift` (macOS), `python3 -c "import qrcode"` and `qrencode` in that order. On Linux, if none is available, run `pip3 install qrcode`.
 
-常用参数 / 环境变量：
+Common flags / environment variables:
 
-| 参数 | 环境变量 | 默认 |
+| Flag | Environment variable | Default |
 | --- | --- | --- |
 | `--host` | `COMAGIC_MOBILE_HOST` | `0.0.0.0` |
 | `--port` | `COMAGIC_MOBILE_PORT` | `4907` |
 | `--password` | `COMAGIC_MOBILE_PASSWORD` | `YFl4cVaQ8smozi4I` |
-| `--directory` | `COMAGIC_MOBILE_DIR` | 当前目录 |
-| `--no-qr` | – | 不打印二维码 |
-| – | `COMAGIC_BIN` | `comagic` 或 `~/.comagic/bin/comagic` |
+| `--directory` | `COMAGIC_MOBILE_DIR` | current directory |
+| `--no-qr` | – | do not print the QR code |
+| – | `COMAGIC_BIN` | `comagic` or `~/.comagic/bin/comagic` |
 | – | `COMAGIC_MOBILE_STATE` | `~/.comagic-mobile/state.json` |
-| – | `COMAGIC_RUN_AUTO=1` | 给每次 `comagic run` 加 `--auto`（自动批准权限，谨慎） |
+| – | `COMAGIC_RUN_AUTO=1` | add `--auto` to every `comagic run` (auto-approve permissions; use with care) |
 
-## 工作方式
+## How it works
 
-- 手机新建会话时只返回一个占位 ID（`ses_mobile_...`），不会立刻启动模型。
-- 第一次发消息时才启动 `comagic run --format json`，从输出事件里拿到真实 `ses_...` 并写入 `state.json` 映射。
-- 后续消息用 `-s <真实会话ID>` 继续同一会话。
-- 助手文本、工具调用、错误、空闲等事件经 SSE `/event` 转发；手机端按 `sessionID` 过滤。
-- 历史消息用 `comagic export <会话ID>` 读取；会话列表用 `comagic session list --format json`。
-- 模式和模型每次启动时通过 `--agent` / `--model`（及 `--variant`）传入；切换只记录在服务端，对下一轮生效。
-- 图片会解码到临时文件，用 `comagic run -f <file>` 作为附件发送，运行结束后删除。
-- 语音仍然由手机端系统语音识别转文字后按文本发送。
+- Creating a session from the phone only returns a placeholder ID (`ses_mobile_...`); no model is started immediately.
+- `comagic run --format json` starts on the first message. The real `ses_...` is taken from the output events and written to the `state.json` mapping.
+- Later messages continue the same session with `-s <real-session-id>`.
+- Assistant text, tool calls, errors, idle events and more are forwarded over SSE `/event`; the phone filters by `sessionID`.
+- History is read with `comagic export <session-id>`; the session list uses `comagic session list --format json`.
+- Mode and model are passed on each launch via `--agent` / `--model` (and `--variant`); switching is recorded server-side and applies to the next turn.
+- Images are decoded to a temporary file and sent as an attachment with `comagic run -f <file>`; the file is deleted after the run.
+- Voice input is still transcribed on-device by the system speech recognizer and sent as text.
 
-> 注意：`comagic export` 在 stdout 是管道且内容较大（内联图片）时会被截断到约 64KB，本服务把 stdout 重定向到临时文件规避了这个问题。
+> Note: `comagic export` truncates stdout to roughly 64 KB when it is a pipe and the content is large (inline images). This server avoids that by redirecting stdout to a temporary file.
 
-## 兼容的接口
+## Compatible endpoints
 
-| 用途 | 接口 |
+| Purpose | Endpoint |
 | --- | --- |
-| 鉴权 | `Authorization: Basic base64(comagic:<密码>)` |
-| 健康检查 | `GET /global/health` |
-| 会话列表 | `GET /api/session?limit=50&order=desc` |
-| 新建会话 | `POST /api/session` body `{agent, model, location{directory}}` |
-| 历史消息 | `GET /session/{id}/message` |
-| 发消息 / 图片 | `POST /session/{id}/message` body `{parts:[...]} ` |
-| 流式事件 | `GET /event`（SSE） |
-| 中断 | `POST /api/session/{id}/interrupt` 或 `POST /session/{id}/abort` |
-| 删除会话 | `DELETE /api/session/{id}` |
-| 路径信息 | `GET /path?directory=<dir>` |
-| 目录浏览 | `GET /api/fs/list?location[directory]=<base>&path=<dir>` |
-| 模式列表 | `GET /api/agent` |
-| 模型列表 | `GET /config/providers` |
-| 切换模式 | `POST /api/session/{id}/agent` body `{agent}` |
-| 切换模型 | `POST /api/session/{id}/model` body `{model{id,providerID,variant?}}` |
+| Auth | `Authorization: Basic base64(comagic:<password>)` |
+| Health | `GET /global/health` |
+| Session list | `GET /api/session?limit=50&order=desc` |
+| Create session | `POST /api/session` body `{agent, model, location{directory}}` |
+| History | `GET /session/{id}/message` |
+| Send message / image | `POST /session/{id}/message` body `{parts:[...]}` |
+| Stream events | `GET /event` (SSE) |
+| Interrupt | `POST /api/session/{id}/interrupt` or `POST /session/{id}/abort` |
+| Delete session | `DELETE /api/session/{id}` |
+| Path info | `GET /path?directory=<dir>` |
+| Browse directories | `GET /api/fs/list?location[directory]=<base>&path=<dir>` |
+| Mode list | `GET /api/agent` |
+| Model list | `GET /config/providers` |
+| Switch mode | `POST /api/session/{id}/agent` body `{agent}` |
+| Switch model | `POST /api/session/{id}/model` body `{model{id,providerID,variant?}}` |
 
-## 限制
+## Limitations
 
-- 每条消息启动一个 CLI 子进程，冷启动比常驻的 `comagic web` 慢；同一会话同时只允许一个运行中的请求。
-- `comagic run` 没有可交互的权限确认通道：权限由 comagic 的配置决定；需要自动批准时自行开启 `COMAGIC_RUN_AUTO=1`。
-- 模式列表是内置的 `build` / `plan`；模型列表通过 `comagic models --verbose` 解析。
-- 会话标题、agent/model 在首次运行结束后从 `comagic export` 回填。
-- 没有实现附件以外的消息编辑、回滚、fork 等 Web 端功能。
+- Each message starts a CLI subprocess, so cold starts are slower than a long-running `comagic web`; only one running request per session is allowed.
+- `comagic run` has no interactive permission prompt: permissions come from the comagic configuration. Enable `COMAGIC_RUN_AUTO=1` if you need automatic approval.
+- The mode list is the built-in `build` / `plan`; the model list is parsed from `comagic models --verbose`.
+- Session titles, agent and model are backfilled from `comagic export` after the first run completes.
+- Web-only features such as message editing, rollback and fork (other than attachments) are not implemented.
 
-## 安全
+## Security
 
-- 服务使用 Basic Auth，密码默认固定为 `YFl4cVaQ8smozi4I`；只建议在可信局域网使用，必要时用 `--password` 覆盖。
-- 该服务等价于把可执行命令的 coding agent 暴露给能访问端口的人，不要直接映射到公网。
-- 新建会话的目录浏览接口可以读取目标机器的目录结构，只对可信设备开放。
-- `--auto` 会自动批准权限请求，也只应在可信环境使用。
+- The service uses Basic Auth with the fixed default password `YFl4cVaQ8smozi4I`; use it only on trusted LANs and override with `--password` when needed.
+- This service is equivalent to exposing a command-executing coding agent to anyone who can reach the port. Never map it to the public internet.
+- The directory-browsing endpoint for new sessions can read the target machine's directory tree; only expose it to trusted devices.
+- `--auto` approves permission requests automatically; use it only in trusted environments.
